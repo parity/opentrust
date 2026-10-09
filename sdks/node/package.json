@@ -1,15 +1,43 @@
 {
   "name": "opentrust",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Node.js client for the OpenTrust API: check mobile numbers against experiences shared by other Indian merchants.",
+  "author": "ParityCube (https://www.paritycube.com)",
   "type": "module",
   "main": "./src/index.js",
   "types": "./src/index.d.ts",
-  "exports": { ".": { "types": "./src/index.d.ts", "import": "./src/index.js" } },
-  "files": ["src", "README.md", "LICENSE"],
-  "engines": { "node": ">=18" },
-  "scripts": { "test": "node --test" },
-  "keywords": ["opentrust", "fraud", "ecommerce", "india", "cod"],
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "import": "./src/index.js"
+    }
+  },
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "keywords": [
+    "opentrust",
+    "fraud",
+    "ecommerce",
+    "india",
+    "cod"
+  ],
   "homepage": "https://opentrust.in/docs",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/parity/opentrust.git",
+    "directory": "sdks/node"
+  },
+  "bugs": {
+    "url": "https://github.com/parity/opentrust/issues"
+  },
   "license": "MIT"
 }

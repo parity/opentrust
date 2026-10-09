@@ -4,6 +4,8 @@
 
 A free, community-run way for Indian merchants to share experiences with problem mobile numbers (refused COD orders, callers posing as a bank to get an OTP, and the like) and to check new customers before they ship. Live at [opentrust.in](https://opentrust.in).
 
+Sponsored and maintained by [ParityCube](https://www.paritycube.com/). Built proudly in India, for India.
+
 > Reports are unverified observations shared by individual merchants. They are not a finding that anyone committed fraud. See the Terms and Privacy Policy in the app .
 
 ## What's in this repo
@@ -68,3 +70,7 @@ What the MIT License does **not** cover:
 - **Third-party logos** shown on the site (for example Zingoy's), which belong to their owners and are used with permission.
 - **Shopify's app template.** The files under `integrations/shopify/app/` that come from Shopify's template are MIT licensed, © Shopify Inc. (see `integrations/shopify/app/LICENSE.md`).
 - **The WooCommerce plugin** (`integrations/woocommerce/opentrust-for-woocommerce/`) is GPL-2.0-or-later, because WordPress.org requires it.
+
+---
+
+OpenTrust is sponsored by [ParityCube](https://www.paritycube.com/) (Parity Cube Pvt Ltd), who run it as a community project and do not charge for it.

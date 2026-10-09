@@ -5,13 +5,15 @@ Gem::Specification.new do |s|
   s.version     = OpenTrust::VERSION
   s.summary     = "Ruby client for the OpenTrust API"
   s.description = "Check mobile numbers against experiences shared by other Indian merchants, and share your own. A small, dependency-free client for https://opentrust.in."
-  s.authors     = ["OpenTrust"]
+  s.authors     = ["ParityCube"]
   s.homepage    = "https://opentrust.in/docs"
   s.license     = "MIT"
   s.required_ruby_version = ">= 2.7"
   s.files       = Dir["lib/**/*.rb", "README.md", "LICENSE"]
   s.metadata    = {
     "documentation_uri"      => "https://opentrust.in/docs",
+    "source_code_uri"        => "https://github.com/parity/opentrust/tree/main/sdks/ruby",
+    "bug_tracker_uri"        => "https://github.com/parity/opentrust/issues",
     "rubygems_mfa_required"  => "true"   # pushing a release then always needs a one-time code, even with a stolen API key
   }
 end

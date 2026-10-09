@@ -40,3 +40,7 @@ end
 Errors: `AuthenticationError` (401), `NoChecksError` (402, write to us and we'll raise your limit), `NotApprovedError` (403), `DuplicateReportError` (409), `InvalidRequestError` (422), `RateLimitError` (429), `ServerError` (5xx), `ConnectionError` (network/timeout). All inherit from `OpenTrust::Error` and carry `status` and `code`.
 
 Timeout defaults to 5 seconds (`timeout:`). Docs: https://opentrust.in/docs
+
+---
+
+Part of [OpenTrust](https://opentrust.in), sponsored by [ParityCube](https://www.paritycube.com/). Source: [github.com/parity/opentrust](https://github.com/parity/opentrust).

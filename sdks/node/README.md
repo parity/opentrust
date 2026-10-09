@@ -38,3 +38,7 @@ try {
 ```
 
 Errors (all extend `OpenTrustError`, with `status` and `code`): `AuthenticationError` 401, `NoChecksError` 402 (write to us and we'll raise your limit), `NotApprovedError` 403, `DuplicateReportError` 409, `InvalidRequestError` 422, `RateLimitError` 429, `ServerError` 5xx, `ConnectionError` network/timeout. Timeout defaults to 5s (`timeoutMs`). Docs: https://opentrust.in/docs
+
+---
+
+Part of [OpenTrust](https://opentrust.in), sponsored by [ParityCube](https://www.paritycube.com/). Source: [github.com/parity/opentrust](https://github.com/parity/opentrust).
