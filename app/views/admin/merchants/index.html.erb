@@ -1,0 +1,19 @@
+<h1 class="text-3xl font-bold">Merchants</h1>
+<div class="mt-3 flex gap-2 text-sm"><% Merchant::STATUSES.each do |s| %><%= link_to s.humanize, admin_root_path(status: s), class: (s == @status ? "btn" : "btn-quiet") %><% end %></div>
+<div class="mt-5 space-y-3">
+  <% @merchants.each do |m| %>
+    <div class="card">
+      <div class="flex flex-wrap justify-between gap-2"><div><strong><%= m.business_name %></strong> <span class="text-ink-soft">· <%= m.name %> · <%= m.contact_email %> · <%= m.phone %> · <%= m.website %> <%= m.gstin %></span></div>
+      <span class="data text-sm"><% if m.merchant_user&.email_verified? %><span class="text-teal">email verified</span><% else %><span class="text-amber">email NOT verified</span><% end %> · <%= number_with_delimiter(m.checks_remaining) %> checks</span></div>
+      <div class="mt-3 flex flex-wrap items-center gap-3 text-sm">
+        <% if (m.pending? || m.rejected?) && m.merchant_user&.email_verified? %><%= button_to "Approve", approve_admin_merchant_path(m), class: "btn" %><% elsif m.pending? %><span class="text-sm text-ink-soft">Can be approved once the email is verified.</span><% end %>
+        <% if m.pending? %><%= form_with url: reject_admin_merchant_path(m), class: "flex gap-2" do %><%= text_field_tag :reason, nil, placeholder: "Reason", class: "field" %><%= submit_tag "Reject", class: "btn-quiet" %><% end %><% end %>
+        <% if m.approved? %>
+          <%= button_to "Suspend", suspend_admin_merchant_path(m), class: "btn-quiet" %>
+          <%= form_with url: adjust_admin_merchant_path(m), class: "flex gap-2" do %><%= number_field_tag :checks, nil, placeholder: "± checks", class: "field w-28" %><%= text_field_tag :memo, nil, placeholder: "Memo (e.g. invoice no.)", class: "field" %><%= submit_tag "Adjust", class: "btn-quiet" %><% end %>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+  <% if @merchants.empty? %><p class="text-ink-soft">No <%= @status %> merchants.</p><% end %>
+</div>

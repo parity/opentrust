@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title><%= content_for?(:title) ? "#{yield(:title)} · OpenTrust" : "OpenTrust – a shared fraud-number registry for Indian merchants" %></title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="description" content="A free, open way for Indian merchants to share experiences with problem mobile numbers and check new customers before they ship.">
+    <link rel="icon" href="/favicon.ico" sizes="48x48">
+    <link rel="icon" type="image/png" href="/icon.png" sizes="512x512">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="OpenTrust">
+    <meta property="og:title" content="<%= content_for?(:title) ? "#{yield(:title)} · OpenTrust" : "OpenTrust: merchants looking out for each other" %>">
+    <meta property="og:description" content="A free, open way for Indian merchants to share experiences with problem mobile numbers and check new customers before they ship.">
+    <meta property="og:image" content="<%= request.base_url %>/og-image.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <%= stylesheet_link_tag "tailwind", "data-turbo-track": "reload" %>
+    <%= javascript_importmap_tags %>
+  </head>
+  <body class="min-h-screen">
+    <div class="scene" aria-hidden="true"></div>
+    <header class="desk-header sticky top-0 z-20 p-2">
+      <nav class="desk-nav mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-3 rounded-lg border border-white/60 bg-paper/95 px-4 py-2 shadow-md">
+        <div class="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm font-semibold">
+          <%= link_to root_path, class: "flex items-center", "aria-label": "OpenTrust, home" do %><%= image_tag "logo/opentrust-logo.png", alt: "OpenTrust", class: "h-12 w-auto", width: 117, height: 48 %><% end %>
+          <%= link_to "How it works", root_path(anchor: "how"), class: "hover:underline" %>
+          <%= link_to "API docs", docs_path, class: "hover:underline" %>
+          <%= link_to "Libraries", libraries_path, class: "hover:underline" %>
+          <%= link_to "FAQ", faq_path, class: "hover:underline" %>
+        </div>
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-semibold">
+          <% if current_merchant_user %>
+            <%= link_to "Dashboard", portal_root_path, class: "btn" %>
+            <%= button_to "Log out", logout_path, method: :delete, class: "hover:underline cursor-pointer" %>
+          <% else %>
+            <%= link_to "Log in", login_path, class: "hover:underline" %>
+            <%= link_to "Get started – free", register_path, class: "btn" %>
+          <% end %>
+        </div>
+      </nav>
+    </header>
+
+    <div class="desk relative z-10 mx-auto flex max-w-[1400px] gap-2 px-2 pb-10" data-controller="window video" data-video-src-value="/video/opentrust-intro.mp4" data-state="normal" data-action="keydown@window->window#escape">
+      <aside class="hidden w-24 shrink-0 flex-col gap-3 pt-4 xl:flex" aria-label="Shortcuts"><%= link_to root_path, class: "dicon" do %><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7v9H5z"/></svg><span>Home</span><% end %><%= link_to docs_path, class: "dicon" do %><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h8l4 4v14H7z"/><path d="M10 12h6M10 16h6"/></svg><span>API docs</span><% end %><%= link_to libraries_path, class: "dicon" do %><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg><span>Libraries</span><% end %><%= link_to faq_path, class: "dicon" do %><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 115 0c0 1.5-2.5 2-2.5 3.5M12 17h.01"/></svg><span>FAQ</span><% end %><button type="button" class="dicon" data-action="video#open" aria-haspopup="dialog"><img src="/video/opentrust-intro-icon.jpg" alt="" width="200" height="113"><span>Watch intro</span></button></aside>
+      <div class="desk-window min-w-0 flex-1" data-window-target="window">
+        <div class="desk-bar"><span class="data desk-url"><%= request.host %><%= request.path %></span><span class="ml-auto flex gap-1">
+            <button type="button" class="winbtn" data-window-target="maxButton" data-action="window#toggleMax" aria-label="Maximize window" aria-pressed="false" title="Maximize"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="3" width="10" height="10" rx="1.5"/></svg></button>
+            <button type="button" class="winbtn" data-action="window#close" aria-label="Close window" title="Close"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>
+          </span></div>
+        <% if notice || alert %>
+          <div class="px-6 pt-4"><p class="rounded-md border px-3 py-2 text-sm font-semibold <%= alert ? 'border-amber bg-amber-wash' : 'border-teal bg-white' %>" role="status"><%= alert || notice %></p></div>
+        <% end %>
+        <main class="px-5 py-8 md:px-10"><%= yield %></main>
+        <footer class="flex flex-wrap justify-between gap-3 border-t border-line px-6 py-4 text-sm text-ink-soft">
+          <p class="flex flex-wrap items-center gap-x-2 gap-y-1">OpenTrust · opentrust.in<span aria-hidden="true">·</span><span class="inline-flex items-center gap-1.5 font-semibold text-ink">Built proudly in India, for India by <%= link_to "ParityCube", "https://www.paritycube.com/", target: "_blank", rel: "noopener noreferrer", class: "underline decoration-ink/40 underline-offset-2 hover:decoration-ink" %> <%= india_flag %></span></p>
+          <p class="flex gap-4"><%= link_to "Privacy", privacy_path %><%= link_to "Terms", terms_path %><%= link_to "FAQ", faq_path %><%= link_to "API docs", docs_path %><%= link_to "Libraries", libraries_path %></p>
+        </footer>
+      </div>
+      <dialog class="vwin" data-video-target="dialog" data-action="click->video#backdrop close->video#closed" aria-label="OpenTrust intro video">
+        <div class="desk-bar"><span class="data desk-url">opentrust-intro.mp4</span><span class="ml-auto flex gap-1">
+            <button type="button" class="winbtn" data-action="video#close" aria-label="Close video" title="Close"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>
+          </span></div>
+        <video class="block aspect-video w-full bg-ink" controls playsinline preload="none" poster="/video/opentrust-intro-poster.jpg" data-video-target="player">
+          Your browser can't play this video. <a href="/video/opentrust-intro.mp4" class="underline">Download it</a>.
+        </video>
+      </dialog>
+      <button type="button" data-window-target="chip" hidden data-action="window#reopen" class="btn sr-only focus:not-sr-only focus:fixed focus:left-1/2 focus:top-24 focus:z-30 focus:-translate-x-1/2">Reopen OpenTrust</button>
+      <aside class="hidden w-24 shrink-0 flex-col gap-3 pt-4 xl:flex" aria-label="Shortcuts"><%= link_to privacy_path, class: "dicon" do %><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 118 0v3"/></svg><span>Privacy</span><% end %><%= link_to terms_path, class: "dicon" do %><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg><span>Terms</span><% end %></aside>
+    </div>
+  </body>
+</html>

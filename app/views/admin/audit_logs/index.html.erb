@@ -1,0 +1,4 @@
+<h1 class="text-3xl font-bold">Audit log</h1>
+<div class="mt-4 overflow-x-auto"><table class="w-full text-left text-sm"><tbody class="divide-y divide-ink/20">
+  <% @logs.each do |l| %><tr><td class="py-2"><%= l.created_at.to_fs(:short) %></td><td><%= l.action %></td><td class="data"><%= l.target_type %>#<%= l.target_id %></td><td class="data text-ink-soft"><%= l.details.to_json %></td></tr><% end %>
+</tbody></table></div>

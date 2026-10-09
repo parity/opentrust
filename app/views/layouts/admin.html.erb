@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>OpenTrust admin</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="robots" content="noindex">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <%= stylesheet_link_tag "tailwind", "data-turbo-track": "reload" %>
+    <%= javascript_importmap_tags %>
+  </head>
+  <body>
+    <nav class="flex flex-wrap items-center gap-5 border-b border-ink bg-ink px-4 py-3 text-sm text-white">
+      <strong class="font-display">OpenTrust admin</strong>
+      <%= link_to "Merchants", admin_root_path %>
+      <%= link_to "Reports", admin_reports_path %>
+      <%= link_to "Audit log", admin_audit_logs_path %>
+      <%= button_to "Log out", admin_logout_path, method: :delete, class: "ml-auto cursor-pointer" %>
+    </nav>
+    <% if notice || alert %><p class="mx-auto mt-4 max-w-6xl px-4 text-sm <%= alert ? 'text-amber' : 'text-teal-deep' %>"><%= alert || notice %></p><% end %>
+    <main class="mx-auto max-w-6xl px-4 py-6"><%= yield %></main>
+  </body>
+</html>

@@ -1,0 +1,15 @@
+{
+  "name": "opentrust",
+  "version": "0.1.0",
+  "description": "Node.js client for the OpenTrust API: check mobile numbers against experiences shared by other Indian merchants.",
+  "type": "module",
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "exports": { ".": { "types": "./src/index.d.ts", "import": "./src/index.js" } },
+  "files": ["src", "README.md", "LICENSE"],
+  "engines": { "node": ">=18" },
+  "scripts": { "test": "node --test" },
+  "keywords": ["opentrust", "fraud", "ecommerce", "india", "cod"],
+  "homepage": "https://opentrust.in/docs",
+  "license": "MIT"
+}

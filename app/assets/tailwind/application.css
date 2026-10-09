@@ -1,0 +1,137 @@
+@import "tailwindcss";
+
+@theme {
+  --color-paper: #EEEFE9;
+  --color-paper-deep: #E2E4D9;
+  --color-ink: #151515;
+  --color-ink-soft: #5A5C52;
+  --color-line: #D2D4C8;
+  --color-teal: #1F7A46;        /* clean / positive */
+  --color-teal-deep: #155A33;
+  --color-amber: #F54E00;       /* flagged / destructive */
+  --color-amber-wash: #FFE9DE;
+  --color-blue: #1D4AFF;        /* links, headline accent */
+  --color-sun: #F0A020;         /* primary action */
+  --color-sun-deep: #B17816;
+  --color-grape: #B62AD9;       /* tab frame */
+  --font-display: "Nunito", ui-rounded, system-ui, sans-serif;
+  --font-sans: "Nunito", ui-rounded, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+@layer base {
+  body {
+    color: var(--color-ink); font-family: var(--font-sans); font-size: 17px;
+    background-color: #9FC596;
+  }
+  h1, h2, h3 { font-weight: 800; letter-spacing: -0.02em; color: #111827; }
+  :focus-visible { outline: 2px solid var(--color-blue); outline-offset: 2px; }
+}
+
+@layer components {
+  /* Amber button: 1px darker border with a heavier bottom edge, drops on press */
+  .btn, .btn-quiet {
+    @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-bold text-ink cursor-pointer transition-all;
+    border: 1px solid var(--color-sun-deep); border-bottom-width: 4px;
+  }
+  .btn { background: var(--color-sun); }
+  .btn:hover { filter: brightness(1.05); }
+  .btn-quiet { background: #fff; }
+  .btn-quiet:hover { background: var(--color-paper); }
+  .btn:active, .btn-quiet:active { border-bottom-width: 1px; transform: translateY(3px); }
+
+  .field { @apply w-full rounded-md border border-line bg-white px-3 py-2 text-sm; }
+  .label { @apply mb-1 block text-xs font-bold text-ink; }
+  .card { @apply rounded-lg border border-line bg-white p-5 shadow-sm; }
+  .data { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+  /* Floating app window on the desktop */
+  .desk-window { @apply rounded-xl border border-white/60 bg-paper; box-shadow: 0 20px 50px -12px rgba(20,40,20,.35); }
+  .desk-bar { @apply flex items-center gap-3 border-b border-line px-4 py-2 text-xs text-ink-soft; }
+  .win { @apply overflow-hidden rounded-lg border border-line bg-white shadow-sm; }
+  .win-bar { @apply flex items-center gap-2 border-b border-line bg-paper px-3 py-2 text-xs; font-family: var(--font-mono); }
+  .win-dot { @apply inline-block h-2.5 w-2.5 rounded-full bg-line; }
+  .tag { @apply inline-block rounded border px-2 py-0.5 text-xs font-bold; }
+
+  /* Highlighter marker */
+  .hl { background: linear-gradient(transparent 12%, rgba(240,160,32,.35) 12% 92%, transparent 92%); padding: 0 .15em; border-radius: .2em; }
+  .hl-blue { background: rgba(29,74,255,.12); color: var(--color-blue); padding: 0 .2em; border-radius: .2em; }
+
+  /* Purple framed tabs */
+  .stack { display: grid; }
+  .stack > * { grid-area: 1 / 1; }
+  .stack > [data-active="false"] { visibility: hidden; }
+  .tabs { @apply rounded-lg; background: var(--color-grape); padding: 0 8px 8px; }
+  .tab { @apply px-4 py-3 text-sm font-bold text-white/80 cursor-pointer; }
+  .tab[aria-selected="true"] { @apply text-white; box-shadow: inset 0 -3px 0 #fff; }
+
+  /* Desktop icons */
+  .dicon { @apply flex w-20 flex-col items-center gap-1 rounded-md p-2 text-center text-xs font-semibold text-white; text-shadow: 0 1px 2px rgba(0,0,0,.45); }
+  .dicon:hover { background: rgba(255,255,255,.2); }
+  .dicon span { background: rgba(18,42,26,.55); border-radius: .35rem; padding: .05rem .4rem; }
+  .dicon img { @apply h-9 w-16 rounded-md border-2 border-white/90 object-cover shadow-sm; }
+  .dicon svg { @apply h-9 w-9 rounded-lg bg-white/85 p-1.5 text-ink; }
+}
+
+@layer components {
+  .legal h2 { scroll-margin-top: 5rem; }
+  .legal section > p, .legal section > ul, .legal section > div { margin-top: .5rem; }
+}
+
+@layer components {
+  /* API docs */
+  .doc p, .doc li, .doc dd { color: #2B2D26; line-height: 1.7; }
+  .doc h2 { scroll-margin-top: 5.5rem; }
+  .code { font-family: var(--font-mono); font-size: .85em; background: var(--color-paper-deep); padding: .1em .4em; border-radius: .3rem; color: #111827; word-break: break-word; }
+  .codeblock { @apply overflow-hidden rounded-lg; background: #17181A; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+  .codeblock-bar { @apply flex flex-wrap items-center gap-1 border-b px-3 py-1.5 text-xs; border-color: rgba(255,255,255,.1); color: #A9ABA0; font-family: var(--font-mono); }
+  .codeblock pre { margin: 0; padding: 1rem 1.1rem; overflow-x: auto; color: #EDEDE6; font-family: var(--font-mono); font-size: 14px; line-height: 1.65; tab-size: 2; }
+  .codetab { @apply cursor-pointer rounded px-2 py-1; color: #A9ABA0; }
+  .codetab[aria-selected="true"] { background: rgba(255,255,255,.12); color: #fff; }
+  .tk-k { color: #9DB7FF; } .tk-s { color: #A7E3B0; } .tk-n { color: #FFB27A; }
+  .docnav a { @apply block rounded px-2 py-1 text-sm font-semibold; color: #2B2D26; }
+  .docnav a:hover { background: var(--color-paper-deep); }
+}
+
+@layer components {
+  .vthumb { @apply relative block w-full max-w-3xl cursor-pointer overflow-hidden rounded-lg border border-line bg-ink p-0 shadow-sm; }
+  .vthumb img { @apply block aspect-video w-full object-cover transition-transform duration-300; }
+  .vthumb:hover img { transform: scale(1.02); }
+  .vthumb-play { @apply absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-ink shadow-lg transition-transform; }
+  .vthumb-play svg { @apply ml-1 h-7 w-7; }
+  .vthumb:hover .vthumb-play { transform: translate(-50%, -50%) scale(1.08); }
+  .vthumb-label { @apply absolute bottom-3 left-3 rounded bg-paper/95 px-2 py-1 text-xs text-ink; }
+  .winbtn { @apply inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded text-ink-soft transition-colors; }
+  .winbtn svg { @apply h-3.5 w-3.5; }
+  .winbtn:hover { background: var(--color-line); color: var(--color-ink); }
+  .winbtn[aria-pressed="true"] { background: var(--color-line); color: var(--color-ink); }
+}
+
+/* Maximized, like a native window taken full screen: the menubar becomes a flush bar across the top,
+ the window fills everything below it with no frame, the URL strip goes, and only the window controls stay.
+ Deliberately outside @layer so these beat the utility classes on the same elements. */
+.desk[data-state="max"] { max-width: none; padding: 0; gap: 0; }
+.desk[data-state="max"] > aside { display: none; }
+.desk[data-state="max"] .desk-window { border-radius: 0; border-width: 0; box-shadow: none; min-height: calc(100vh - 3.6rem); }
+.desk[data-state="max"] .desk-bar { justify-content: flex-end; border-bottom-width: 0; padding-block: .35rem; }
+.desk[data-state="max"] .desk-url { display: none; }
+body:has(.desk[data-state="max"]) { background: var(--color-paper); }
+body:has(.desk[data-state="max"]) .desk-header { padding: 0; }
+body:has(.desk[data-state="max"]) .desk-nav { max-width: none; border-radius: 0; border-width: 0 0 1px 0; border-color: var(--color-line); box-shadow: none; background: var(--color-paper); }
+
+/* The illustration is the desktop wallpaper on every page. The everyday version is still, so nothing repaints
+   behind the content; closing the window swaps in the animated one (the still one stays underneath until it loads). */
+.scene { position: fixed; inset: 0; z-index: 0; background: #9FC596 url("/merchants-scene-still.svg?v=5") center bottom / cover no-repeat; }
+body:has(.desk[data-state="closed"]) .scene { background-image: url("/merchants-scene.svg?v=5"), url("/merchants-scene-still.svg?v=5"); }
+body:has(.desk[data-state="max"]) .scene { display: none; } /* fully covered: don't paint it */
+
+/* Closed: nothing sits between the two icon columns, so keep them pinned to opposite edges. */
+.desk[data-state="closed"] { justify-content: space-between; }
+
+/* The video window: a second window floating over the page, with a dimmed, blurred desktop behind it. Outside the
+   layers so no utility can override it. */
+.vwin { width: min(960px, 92vw); max-height: 92vh; margin: auto; padding: 0; overflow: hidden; border: 1px solid rgba(255,255,255,.6); border-radius: .75rem; background: var(--color-paper); box-shadow: 0 30px 80px -10px rgba(10,25,15,.6); }
+.vwin::backdrop { background: rgba(14,30,20,.55); backdrop-filter: blur(3px); }
+.vwin[open] { animation: vwin-in .18s ease-out; }
+@keyframes vwin-in { from { opacity: 0; transform: scale(.97) translateY(6px); } }
+@media (prefers-reduced-motion: reduce) { .vwin[open] { animation: none; } .vthumb img, .vthumb-play { transition: none; } }

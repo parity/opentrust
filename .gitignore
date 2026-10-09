@@ -1,0 +1,42 @@
+# Secrets: never commit these
+/config/*.key
+/config/credentials/*.key
+.env
+.env.*
+!.env.example
+
+# Rails runtime
+/log/*
+/tmp/*
+!/log/.keep
+!/tmp/.keep
+/storage/*
+!/storage/.keep
+/public/assets
+/app/assets/builds/*
+!/app/assets/builds/.keep
+/vendor/bundle
+/coverage
+
+# Local tooling and scratch
+.gstack/
+.DS_Store
+*.swp
+
+# SDK build artifacts
+/sdks/ruby/*.gem
+/sdks/node/node_modules
+/sdks/node/*.tgz
+/integrations/*/node_modules
+/integrations/*/*/node_modules
+
+# WooCommerce dev stack
+/integrations/woocommerce/dev/scripts/key.txt
+
+# DigitalOcean: a local copy of the spec with real secret values for creating the app. Never commit.
+/.do/*.local.yaml
+/integrations/shopify/app/.do/*.local.yaml
+
+# Deployment state on the server (which images are deployed); never committed
+/deploy/droplet/images.env
+/deploy/droplet/images.env.*

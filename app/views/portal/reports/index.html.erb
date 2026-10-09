@@ -1,0 +1,9 @@
+<% content_for :title, "Reports" %>
+<%= render "portal/nav" %>
+<div class="flex items-center justify-between"><h1 class="text-3xl font-bold tracking-tight">Your reports</h1><%= link_to "Share an experience", new_portal_report_path, class: "btn" %></div>
+<div class="mt-4 overflow-x-auto"><table class="w-full text-left text-sm"><tbody class="divide-y divide-ink/20">
+  <% @reports.each do |r| %>
+    <tr><td class="data py-2">••••••<%= r.phone_last4 %></td><td><%= FraudReport.label_for(r.reason_code) %></td><td class="text-ink-soft"><%= r.notes %></td><td class="text-ink-soft"><%= l r.created_at.to_date %></td><td><%= r.status.humanize %></td></tr>
+  <% end %>
+  <% if @reports.empty? %><tr><td class="py-4 text-ink-soft">Nothing shared yet.</td></tr><% end %>
+</tbody></table></div>

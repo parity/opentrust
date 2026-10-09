@@ -1,0 +1,23 @@
+<% content_for :title, "Register" %>
+<div class="mx-auto max-w-lg">
+  <h1 class="text-3xl font-bold tracking-tight">Register your business</h1>
+  <p class="mt-2 text-ink-soft">An admin reviews every registration. Once approved you get <%= number_with_delimiter(OpenTrust::FREE_CHECKS) %> free checks and can create an API key. It costs nothing.</p>
+  <%= form_with model: @merchant, url: register_path, class: "card mt-6 space-y-4" do |f| %>
+    <div><%= f.label :business_name, "Business name", class: "label" %><%= f.text_field :business_name, required: true, class: "field" %></div>
+    <div><%= f.label :name, "Your name", class: "label" %><%= f.text_field :name, required: true, class: "field" %></div>
+    <div><%= f.label :website, "Website", class: "label" %><%= f.url_field :website, placeholder: "https://", class: "field" %></div>
+    <div><%= f.label :gstin, "GSTIN (optional)", class: "label" %><%= f.text_field :gstin, class: "field" %></div>
+    <div>
+      <%= f.label :phone, "Mobile number", class: "label" %>
+      <div class="flex">
+        <span class="data flex items-center rounded-l-md border border-r-0 border-line bg-paper-deep px-3 text-sm" aria-hidden="true">+91</span>
+        <%= f.telephone_field :phone, value: @merchant.phone.to_s.delete_prefix("+91"), required: true, maxlength: 10, minlength: 10, pattern: "[6-9][0-9]{9}", inputmode: "numeric", autocomplete: "tel-national", placeholder: "98765 43210", title: "10-digit Indian mobile number starting with 6, 7, 8 or 9", class: "field data !rounded-l-none" %>
+      </div>
+      <p class="mt-1 text-xs text-ink-soft">We use it to reach you about your account. It's never shown to other merchants.</p>
+    </div>
+    <div><%= f.label :contact_email, "Work email (this is your login)", class: "label" %><%= f.email_field :contact_email, required: true, autocomplete: "email", class: "field" %></div>
+    <div><%= label_tag :password, "Password (8+ characters)", class: "label" %><%= password_field_tag :password, nil, required: true, minlength: 8, autocomplete: "new-password", class: "field" %></div>
+    <label class="flex items-start gap-2 text-sm"><%= check_box_tag :accept_terms, "1", false, required: true, class: "mt-1" %><span>I'm authorised to act for this business and I accept the <%= link_to "Terms", terms_path, target: "_blank", class: "text-blue underline" %> and <%= link_to "Privacy Policy", privacy_path, target: "_blank", class: "text-blue underline" %>.</span></label>
+    <%= f.submit "Register", class: "btn w-full" %>
+  <% end %>
+</div>

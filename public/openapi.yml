@@ -1,0 +1,38 @@
+openapi: 3.0.3
+info: { title: OpenTrust API, version: "1.0", description: "A free, shared notebook where Indian merchants share experiences with mobile numbers. Reports are unverified observations, not findings about anyone." }
+servers: [{ url: https://opentrust.in/api/v1 }]
+security: [{ bearer: [] }]
+components:
+  securitySchemes: { bearer: { type: http, scheme: bearer } }
+  schemas:
+    Error: { type: object, properties: { error: { type: object, properties: { code: { type: string }, message: { type: string } } } } }
+    LookupResult:
+      type: object
+      properties:
+        phone_last4: { type: string }
+        reported: { type: boolean }
+        report_count: { type: integer }
+        notice: { type: string }
+        checks_remaining: { type: integer }
+        reports:
+          type: array
+          items: { type: object, properties: { reason_code: { type: string }, reason: { type: string }, notes: { type: string, nullable: true }, reported_at: { type: string, format: date }, reporter_verified: { type: boolean } } }
+paths:
+  /lookups:
+    post:
+      summary: Check one number (uses 1 check)
+      requestBody: { content: { application/json: { schema: { type: object, required: [phone], properties: { phone: { type: string } } } } } }
+      responses: { "200": { description: OK }, "401": { description: Bad key }, "402": { description: No checks left }, "422": { description: Invalid number } }
+  /lookups/batch:
+    post:
+      summary: Check up to 100 numbers (1 check each, all or nothing)
+      requestBody: { content: { application/json: { schema: { type: object, required: [phones], properties: { phones: { type: array, maxItems: 100, items: { type: string } } } } } } }
+      responses: { "200": { description: OK }, "402": { description: No checks left } }
+  /reports:
+    post:
+      summary: Share an experience with a number
+      requestBody:
+        content: { application/json: { schema: { type: object, required: [phone, reason_code], properties: { phone: { type: string }, reason_code: { type: string, enum: [cod_refusal, fake_order, return_abuse, chargeback, fake_payment_proof, otp_fraud, bank_impersonation, merchant_impersonation, phishing_link, kyc_scam, refund_scam, identity_fraud, other] }, notes: { type: string, maxLength: 500 } } } } }
+      responses: { "201": { description: Created }, "409": { description: Already reported by you }, "422": { description: Invalid } }
+  /me:
+    get: { summary: Checks remaining and usage, responses: { "200": { description: OK } } }

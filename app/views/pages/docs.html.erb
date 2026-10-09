@@ -1,0 +1,167 @@
+<% content_for :title, "API docs" %>
+<% notice_text = OpenTrust::LOOKUP_NOTICE %>
+<div class="doc grid gap-10 lg:grid-cols-[200px_minmax(0,1fr)]">
+  <aside class="hidden lg:block"><nav class="docnav sticky top-24 space-y-0.5" aria-label="On this page">
+    <p class="px-2 pb-1 text-xs font-bold uppercase tracking-wide text-ink-soft">Guide</p>
+    <a href="#libraries">Libraries</a><a href="#auth">Authentication</a><a href="#lookup">Check a number</a><a href="#batch">Check many</a><a href="#share">Share an experience</a><a href="#me">Your checks</a><a href="#errors">Errors</a><a href="#responsibly">Using results</a>
+  </nav></aside>
+
+  <div class="min-w-0 max-w-3xl space-y-12">
+    <header>
+      <h1 class="text-4xl font-bold tracking-tight">API docs</h1>
+      <p class="mt-3 text-lg">A small JSON API. Base URL <span class="code">https://opentrust.in/api/v1</span>. Create your key from your <%= link_to "dashboard", portal_api_keys_path, class: "text-blue underline" %>.</p>
+    </header>
+
+    <section id="libraries">
+      <h2 class="text-2xl font-bold">Libraries</h2>
+      <p class="mt-2">Small, dependency-free clients that wrap this API with typed errors, so you can be up and running in a few lines. They're open source<%= " and live in our " if OpenTrust::REPO_URL %><%= link_to "public repository", OpenTrust::REPO_URL, target: "_blank", rel: "noopener noreferrer", class: "text-blue underline" if OpenTrust::REPO_URL %>.</p>
+      <% unless OpenTrust::SDKS_PUBLISHED %>
+        <p class="mt-3 rounded-md border border-amber bg-amber-wash p-3 text-sm">The Ruby and Node packages are about to be published. Until then you can call the API directly with any HTTP client, as shown below.</p>
+      <% end %>
+      <div class="mt-4 grid gap-4 sm:grid-cols-2">
+        <div class="codeblock"><div class="codeblock-bar">Ruby · gem</div><pre><code>gem install opentrust
+
+client = OpenTrust::Client.new
+client.lookup("9876543210").reported?</code></pre></div>
+        <div class="codeblock"><div class="codeblock-bar">Node.js · npm</div><pre><code>npm install opentrust
+
+const ot = new OpenTrust();
+(await ot.lookup("9876543210")).reported</code></pre></div>
+      </div>
+      <p class="mt-3 text-sm">Both read <span class="code">OPENTRUST_API_KEY</span> from the environment. See all <%= link_to "libraries and integrations", libraries_path, class: "text-blue underline" %>, including the Shopify and WooCommerce plugins on the way. Want a library for another language? <%= mail_to OpenTrust::FEEDBACK_EMAIL, "Tell us", class: "text-blue underline" %>.</p>
+    </section>
+
+    <section id="auth">
+      <h2 class="text-2xl font-bold">Authentication</h2>
+      <p class="mt-2">Send your key as a bearer token on every request. Keep it secret and revoke it from the dashboard if it leaks. Requests are limited to 120 per minute per key.</p>
+      <div class="codeblock mt-4"><div class="codeblock-bar">header</div><pre><code>Authorization: Bearer ot_live_xxxxxxxxxxxxxxxxxxxxxxxx</code></pre></div>
+    </section>
+
+    <section id="lookup">
+      <h2 class="flex flex-wrap items-center gap-3 text-2xl font-bold"><%= method_badge("POST") %> <span class="code !text-base">/lookups</span></h2>
+      <p class="mt-2"><strong>Check one number.</strong> Uses 1 check from your allowance. Any common format works: <span class="code">98765 43210</span>, <span class="code">09876543210</span> or <span class="code">+919876543210</span>.</p>
+      <div class="codeblock mt-4" data-controller="tabs">
+        <div class="codeblock-bar" role="tablist"><button type="button" role="tab" class="codetab" data-tabs-target="tab" data-action="tabs#pick">curl</button><% if OpenTrust::SDKS_PUBLISHED %><button type="button" role="tab" class="codetab" data-tabs-target="tab" data-action="tabs#pick">Ruby gem</button><button type="button" role="tab" class="codetab" data-tabs-target="tab" data-action="tabs#pick">Node package</button><% end %><button type="button" role="tab" class="codetab" data-tabs-target="tab" data-action="tabs#pick">Node (fetch)</button><button type="button" role="tab" class="codetab" data-tabs-target="tab" data-action="tabs#pick">Python</button><button type="button" role="tab" class="codetab" data-tabs-target="tab" data-action="tabs#pick">PHP</button><button type="button" role="tab" class="codetab" data-tabs-target="tab" data-action="tabs#pick">Ruby (net/http)</button></div>
+        <pre data-tabs-target="panel"><code>curl -X POST https://opentrust.in/api/v1/lookups \
+  -H &quot;Authorization: Bearer $OPENTRUST_KEY&quot; \
+  -d phone=9876543210</code></pre><% if OpenTrust::SDKS_PUBLISHED %><pre data-tabs-target="panel"><code># gem install opentrust
+require "opentrust"
+
+client = OpenTrust::Client.new # reads OPENTRUST_API_KEY
+result = client.lookup("9876543210")
+result.reported?     # true / false
+result.reports       # what other merchants noted
+result.notice        # keep this in front of anyone who sees the result</code></pre><pre data-tabs-target="panel"><code>// npm install opentrust
+import { OpenTrust } from "opentrust";
+
+const ot = new OpenTrust(); // reads OPENTRUST_API_KEY
+const result = await ot.lookup("9876543210");
+result.reported;     // true / false
+result.reports;      // what other merchants noted
+result.notice;       // keep this in front of anyone who sees the result</code></pre><% end %><pre data-tabs-target="panel"><code>const res = await fetch(&quot;https://opentrust.in/api/v1/lookups&quot;, {
+  method: &quot;POST&quot;,
+  headers: {
+    Authorization: `Bearer ${process.env.OPENTRUST_KEY}`,
+    &quot;Content-Type&quot;: &quot;application/json&quot;,
+  },
+  body: JSON.stringify({ phone: &quot;9876543210&quot; }),
+});
+const result = await res.json();</code></pre><pre data-tabs-target="panel"><code>import os, requests
+
+res = requests.post(
+    &quot;https://opentrust.in/api/v1/lookups&quot;,
+    headers={&quot;Authorization&quot;: f&quot;Bearer {os.environ[&#x27;OPENTRUST_KEY&#x27;]}&quot;},
+    json={&quot;phone&quot;: &quot;9876543210&quot;},
+)
+result = res.json()</code></pre><pre data-tabs-target="panel"><code>$ch = curl_init(&quot;https://opentrust.in/api/v1/lookups&quot;);
+curl_setopt_array($ch, [
+  CURLOPT_POST =&gt; true,
+  CURLOPT_HTTPHEADER =&gt; [&quot;Authorization: Bearer &quot; . getenv(&quot;OPENTRUST_KEY&quot;),
+                         &quot;Content-Type: application/json&quot;],
+  CURLOPT_POSTFIELDS =&gt; json_encode([&quot;phone&quot; =&gt; &quot;9876543210&quot;]),
+  CURLOPT_RETURNTRANSFER =&gt; true,
+]);
+$result = json_decode(curl_exec($ch), true);</code></pre><pre data-tabs-target="panel"><code>require &quot;net/http&quot;
+require &quot;json&quot;
+
+uri = URI(&quot;https://opentrust.in/api/v1/lookups&quot;)
+req = Net::HTTP::Post.new(uri, &quot;Authorization&quot; =&gt; &quot;Bearer #{ENV[&#x27;OPENTRUST_KEY&#x27;]}&quot;,
+                               &quot;Content-Type&quot; =&gt; &quot;application/json&quot;)
+req.body = { phone: &quot;9876543210&quot; }.to_json
+res = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) { |h| h.request(req) }
+result = JSON.parse(res.body)</code></pre>
+      </div>
+      <p class="mt-6 font-bold">Response <span class="code">200</span></p>
+      <div class="codeblock mt-2"><div class="codeblock-bar">response.json</div><pre><code><%= highlight_json({ phone_last4: "3210", reported: true, report_count: 1,
+        reports: [{ reason_code: "cod_refusal", reason: "Refused a cash-on-delivery order", notes: "Refused 3 COD orders", reported_at: "2026-10-01", reporter_verified: true }],
+        notice: "Reports are unverified observations shared by individual merchants. …", checks_remaining: 99_999 }) %></code></pre></div>
+      <ul class="mt-4 list-disc space-y-1 pl-5">
+        <li><span class="code">reports: []</span> and <span class="code">report_count: 0</span> mean no merchant has reported the number.</li>
+        <li>You never get the full number back, only <span class="code">phone_last4</span>, and never who reported.</li>
+        <li><span class="code">notice</span> is included in every response. Please keep it in front of anyone who sees a result.</li>
+      </ul>
+    </section>
+
+    <section id="batch">
+      <h2 class="flex flex-wrap items-center gap-3 text-2xl font-bold"><%= method_badge("POST") %> <span class="code !text-base">/lookups/batch</span></h2>
+      <p class="mt-2"><strong>Check up to 100 numbers.</strong> Uses one check per number, all or nothing: if you don't have enough checks, none are used and you get a <span class="code">402</span>.</p>
+      <div class="codeblock mt-4"><div class="codeblock-bar">curl</div><pre><code>curl -X POST https://opentrust.in/api/v1/lookups/batch \
+  -H "Authorization: Bearer $OPENTRUST_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"phones": ["9876543210", "9000000001"]}'</code></pre></div>
+      <p class="mt-4 font-bold">Response <span class="code">200</span></p>
+      <div class="codeblock mt-2"><div class="codeblock-bar">response.json</div><pre><code><%= highlight_json({ results: [{ phone_last4: "3210", reported: true, report_count: 1, reports: ["…"] }, { phone_last4: "0001", reported: false, report_count: 0, reports: [] }],
+        notice: "…", checks_remaining: 99_998 }) %></code></pre></div>
+    </section>
+
+    <section id="share">
+      <h2 class="flex flex-wrap items-center gap-3 text-2xl font-bold"><%= method_badge("POST") %> <span class="code !text-base">/reports</span></h2>
+      <p class="mt-2"><strong>Share an experience with a number.</strong> Optional, and it doesn't change your allowance. Only share what your own business directly experienced, as plain facts.</p>
+      <div class="codeblock mt-4"><div class="codeblock-bar">curl</div><pre><code>curl -X POST https://opentrust.in/api/v1/reports \
+  -H "Authorization: Bearer $OPENTRUST_KEY" \
+  -d phone=9876543210 \
+  -d reason_code=cod_refusal \
+  -d "notes=Refused 3 COD orders in March"</code></pre></div>
+      <p class="mt-4"><span class="code">notes</span> is optional, up to 500 characters. No names, accusations, emails, links or phone numbers. Each merchant can share one report per number.</p>
+      <p class="mt-4 font-bold">Reason codes</p>
+      <div class="mt-2 space-y-4">
+        <% FraudReport::REASON_GROUPS.each do |group, codes| %>
+          <div><p class="text-sm font-bold text-ink-soft"><%= group %></p>
+            <dl class="mt-1 divide-y divide-ink/10 rounded-lg border border-line bg-white text-sm">
+              <% codes.each do |c| %><div class="flex flex-wrap items-baseline justify-between gap-x-4 px-3 py-2"><dt><span class="code"><%= c %></span></dt><dd><%= FraudReport.label_for(c) %></dd></div><% end %>
+            </dl></div>
+        <% end %>
+      </div>
+      <p class="mt-4 font-bold">Response <span class="code">201</span></p>
+      <div class="codeblock mt-2"><div class="codeblock-bar">response.json</div><pre><code><%= highlight_json({ id: 42, phone_last4: "3210", status: "recorded" }) %></code></pre></div>
+    </section>
+
+    <section id="me">
+      <h2 class="flex flex-wrap items-center gap-3 text-2xl font-bold"><%= method_badge("GET") %> <span class="code !text-base">/me</span></h2>
+      <p class="mt-2"><strong>See your checks.</strong> Free to call.</p>
+      <div class="codeblock mt-4"><div class="codeblock-bar">response.json</div><pre><code><%= highlight_json({ merchant: "Your Shop", checks_remaining: 99_998, reports_submitted: 3 }) %></code></pre></div>
+      <p class="mt-3">Running low? Write to <%= mail_to OpenTrust::FEEDBACK_EMAIL, nil, class: "text-blue underline" %> and we'll set a generous limit.</p>
+    </section>
+
+    <section id="errors">
+      <h2 class="text-2xl font-bold">Errors</h2>
+      <p class="mt-2">Every error has the same shape:</p>
+      <div class="codeblock mt-3"><div class="codeblock-bar">error.json</div><pre><code><%= highlight_json({ error: { code: "no_checks_remaining", message: "You have used all your checks. …" } }) %></code></pre></div>
+      <div class="mt-4 overflow-x-auto rounded-lg border border-line bg-white"><table class="w-full text-left text-sm"><tbody class="divide-y divide-ink/10">
+        <% { 401 => ["invalid_api_key", "Missing or invalid API key"], 402 => ["no_checks_remaining", "No checks left. Write to us and we'll raise your limit"], 403 => ["merchant_not_approved", "Account isn't approved or is suspended"], 409 => ["duplicate_report", "You already shared this number"], 422 => ["invalid_phone / invalid_report", "Invalid number, reason code or note"], 429 => ["rate_limited", "Over 120 requests per minute"] }.each do |status, (code, msg)| %>
+          <tr><td class="whitespace-nowrap px-3 py-2"><span class="code"><%= status %></span></td><td class="px-3 py-2"><span class="code"><%= code %></span></td><td class="px-3 py-2"><%= msg %></td></tr>
+        <% end %>
+      </tbody></table></div>
+    </section>
+
+    <section id="responsibly">
+      <h2 class="text-2xl font-bold">Using results responsibly</h2>
+      <p class="mt-2"><%= notice_text %></p>
+      <ul class="mt-3 list-disc space-y-1 pl-5">
+        <li>Have a person review any decision that materially affects a customer.</li>
+        <li>Don't tell customers that OpenTrust is the reason for a decision.</li>
+        <li>Don't resell, republish or bulk-export results. See the <%= link_to "Terms", terms_path, class: "text-blue underline" %>.</li>
+      </ul>
+    </section>
+  </div>
+</div>

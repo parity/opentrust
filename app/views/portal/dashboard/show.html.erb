@@ -1,0 +1,13 @@
+<% content_for :title, "Dashboard" %>
+<%= render "portal/nav" %>
+<h1 class="text-3xl font-bold tracking-tight"><%= current_merchant.business_name %></h1>
+<div class="mt-5 grid gap-4 sm:grid-cols-3">
+  <div class="card"><p class="label">Checks left</p><p class="data text-3xl font-medium"><%= number_with_delimiter(current_merchant.checks_remaining) %></p><p class="text-sm text-ink-soft">Running low? <%= mail_to OpenTrust::FEEDBACK_EMAIL, "Write to us", class: "text-blue underline" %></p></div>
+  <div class="card"><p class="label">Lookups, last 30 days</p><p class="data text-3xl font-medium"><%= number_with_delimiter(@lookups_30d) %></p></div>
+  <div class="card"><p class="label">Experiences shared</p><p class="data text-3xl font-medium"><%= number_with_delimiter(@reports) %></p><%= link_to "Share an experience", new_portal_report_path, class: "text-sm text-blue underline" %></div>
+</div>
+<% if current_merchant.api_keys.active.none? %>
+  <p class="card mt-4">You haven't created an API key yet. <%= link_to "Create one", portal_api_keys_path, class: "text-blue underline" %> to start checking numbers.</p>
+<% end %>
+<h2 class="mt-8 text-xl font-bold">Recent activity</h2>
+<%= render "portal/ledger/table", entries: @recent %>

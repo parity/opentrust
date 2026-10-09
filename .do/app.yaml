@@ -1,0 +1,111 @@
+# DigitalOcean App Platform spec for OpenTrust. Full walkthrough: docs/DEPLOYMENT.md.
+#
+# Nothing secret belongs in this file. Every value marked "REPLACE_IN_CONSOLE" must be set to a real secret in the
+# DigitalOcean control panel (Settings > App-Level Environment Variables) BEFORE the first deploy. The app refuses to
+# start if a secret still looks like a placeholder, so a forgotten one fails safe instead of encrypting with a known key.
+name: opentrust
+region: blr # Bangalore
+
+# Settings that every component (the web service and both jobs) needs, because the app won't boot without them.
+envs:
+  - key: RAILS_ENV
+    value: production
+    scope: RUN_TIME
+  - key: DATABASE_URL
+    value: ${db.DATABASE_URL} # bound to the database component below; DigitalOcean fills it in
+    scope: RUN_TIME
+  - key: APP_HOST
+    value: opentrust.in
+    scope: RUN_TIME
+  - key: MAIL_FROM
+    value: "OpenTrust <noreply@opentrust.in>"
+    scope: RUN_TIME
+  - key: SECRET_KEY_BASE
+    value: REPLACE_IN_CONSOLE # bin/rails secret
+    scope: RUN_TIME
+    type: SECRET
+  - key: PHONE_HASH_PEPPER
+    value: REPLACE_IN_CONSOLE # openssl rand -hex 32. Never rotate casually.
+    scope: RUN_TIME
+    type: SECRET
+  - key: AR_ENC_PRIMARY_KEY
+    value: REPLACE_IN_CONSOLE # bin/rails db:encryption:init
+    scope: RUN_TIME
+    type: SECRET
+  - key: AR_ENC_DETERMINISTIC_KEY
+    value: REPLACE_IN_CONSOLE # bin/rails db:encryption:init
+    scope: RUN_TIME
+    type: SECRET
+  - key: AR_ENC_SALT
+    value: REPLACE_IN_CONSOLE # bin/rails db:encryption:init
+    scope: RUN_TIME
+    type: SECRET
+  - key: RESEND_API_KEY
+    value: REPLACE_IN_CONSOLE # from the Resend dashboard
+    scope: RUN_TIME
+    type: SECRET
+
+services:
+  - name: web
+    gitlab:
+      repo: OWNER/opentrust # your GitLab project path (group/project)
+      branch: main
+      deploy_on_push: true
+    dockerfile_path: Dockerfile
+    http_port: 3000
+    instance_size_slug: apps-s-1vcpu-1gb
+    instance_count: 1 # see docs/DEPLOYMENT.md before running more than one
+    health_check:
+      http_path: /up
+      initial_delay_seconds: 20
+      period_seconds: 10
+      failure_threshold: 6
+    alerts:
+      - rule: MEM_UTILIZATION
+        operator: GREATER_THAN
+        value: 85
+        window: FIVE_MINUTES
+      - rule: RESTART_COUNT
+        operator: GREATER_THAN
+        value: 2
+        window: FIVE_MINUTES
+
+jobs:
+  # Runs before each new version starts: creates or migrates the database.
+  - name: migrate
+    kind: PRE_DEPLOY
+    gitlab:
+      repo: OWNER/opentrust
+      branch: main
+    dockerfile_path: Dockerfile
+    run_command: ./bin/rails db:prepare
+
+  # Deletes reports and audit logs that have outlived the retention periods in the Privacy Policy.
+  - name: purge-expired
+    kind: SCHEDULED
+    schedule:
+      cron: "30 2 * * *"
+      time_zone: Asia/Kolkata
+    gitlab:
+      repo: OWNER/opentrust
+      branch: main
+    dockerfile_path: Dockerfile
+    run_command: ./bin/rails opentrust:purge_expired
+
+databases:
+  - name: db
+    engine: PG
+    version: "16"
+    production: true # a real managed cluster, with daily backups. Create it in the control panel first, then name it here.
+    cluster_name: opentrust-db
+    db_name: opentrust
+    db_user: opentrust
+
+domains:
+  - domain: opentrust.in
+    type: PRIMARY
+    minimum_tls_version: "1.2"
+
+alerts:
+  - rule: DEPLOYMENT_FAILED
+  - rule: DOMAIN_FAILED

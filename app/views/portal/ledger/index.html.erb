@@ -1,0 +1,5 @@
+<% content_for :title, "Usage ledger" %>
+<%= render "portal/nav" %>
+<h1 class="text-3xl font-bold tracking-tight">Usage ledger</h1>
+<p class="text-ink-soft">Each check uses one from your allowance. Need more? Write to <%= mail_to OpenTrust::FEEDBACK_EMAIL, nil, class: "text-blue underline" %>.</p>
+<%= render "portal/ledger/table", entries: @entries %>

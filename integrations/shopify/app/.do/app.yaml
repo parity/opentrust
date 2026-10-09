@@ -1,0 +1,75 @@
+# DigitalOcean App Platform spec for the OpenTrust Shopify app. Full walkthrough: docs/DEPLOYMENT.md (section "Shopify app").
+# A separate App Platform app from the main OpenTrust site, built from the same repository.
+#
+# As with the main app, every "REPLACE_IN_CONSOLE" must be set to a real value in the control panel before the first deploy.
+name: opentrust-shopify
+region: blr # Bangalore
+
+services:
+  - name: web
+    gitlab:
+      repo: OWNER/opentrust # your GitLab project path (group/project)
+      branch: main
+      deploy_on_push: true
+    source_dir: integrations/shopify/app # build context
+    dockerfile_path: integrations/shopify/app/Dockerfile
+    http_port: 3000
+    instance_size_slug: apps-s-1vcpu-1gb
+    instance_count: 1
+    health_check:
+      http_path: / # the public landing page
+      initial_delay_seconds: 30
+      period_seconds: 10
+      failure_threshold: 6
+    # The Dockerfile starts with `npm run docker-start`, which applies database migrations and then starts the server.
+    envs:
+      - key: NODE_ENV
+        value: production
+        scope: RUN_TIME
+      - key: DATABASE_URL
+        value: ${shopify-db.DATABASE_URL}
+        scope: RUN_TIME
+      - key: SHOPIFY_APP_URL
+        value: https://shopify.opentrust.in
+        scope: RUN_TIME
+      - key: SCOPES
+        value: read_orders,write_orders
+        scope: RUN_TIME
+      - key: SHOPIFY_API_KEY
+        value: REPLACE_IN_CONSOLE # the "Client ID" from your app in the Shopify Partner Dashboard
+        scope: RUN_AND_BUILD_TIME
+      - key: SHOPIFY_API_SECRET
+        value: REPLACE_IN_CONSOLE # the "Client secret" from the same page
+        scope: RUN_TIME
+        type: SECRET
+      - key: ENCRYPTION_KEY
+        value: REPLACE_IN_CONSOLE # openssl rand -hex 32. Losing it means every shop must re-enter its OpenTrust key.
+        scope: RUN_TIME
+        type: SECRET
+    alerts:
+      - rule: MEM_UTILIZATION
+        operator: GREATER_THAN
+        value: 85
+        window: FIVE_MINUTES
+      - rule: RESTART_COUNT
+        operator: GREATER_THAN
+        value: 2
+        window: FIVE_MINUTES
+
+databases:
+  - name: shopify-db
+    engine: PG
+    version: "16"
+    production: true # the same managed cluster as the main app, as a separate database
+    cluster_name: opentrust-db
+    db_name: opentrust_shopify
+    db_user: opentrust_shopify
+
+domains:
+  - domain: shopify.opentrust.in
+    type: PRIMARY
+    minimum_tls_version: "1.2"
+
+alerts:
+  - rule: DEPLOYMENT_FAILED
+  - rule: DOMAIN_FAILED

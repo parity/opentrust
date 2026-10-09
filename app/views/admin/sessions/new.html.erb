@@ -1,0 +1,8 @@
+<div class="mx-auto max-w-sm">
+  <h1 class="text-3xl font-bold tracking-tight">Admin log in</h1>
+  <%= form_with url: admin_login_path, class: "card mt-6 space-y-4" do %>
+    <div><%= label_tag :email, "Email", class: "label" %><%= email_field_tag :email, nil, required: true, class: "field" %></div>
+    <div><%= label_tag :password, "Password", class: "label" %><%= password_field_tag :password, nil, required: true, class: "field" %></div>
+    <%= submit_tag "Log in", class: "btn w-full" %>
+  <% end %>
+</div>

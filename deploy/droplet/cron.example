@@ -1,0 +1,9 @@
+# Install as the deployer user with:  crontab cron.example   (it replaces deployer's crontab)
+# cron's default shell is plain sh; the helper scripts need bash.
+SHELL=/bin/bash
+
+# Database dumps every 6 hours, each copied off the server by BACKUP_UPLOAD_CMD (see backup.sh)
+15 */6 * * * $HOME/opentrust/deploy/droplet/backup.sh >> $HOME/backups/backup.log 2>&1
+
+# Delete expired reports and old audit logs, as the Privacy Policy promises (02:30 server time)
+30 2 * * * cd $HOME/opentrust/deploy/droplet && . ./lib.sh && dc exec -T web ./bin/rails opentrust:purge_expired >> $HOME/backups/purge.log 2>&1

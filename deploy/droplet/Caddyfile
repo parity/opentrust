@@ -1,0 +1,12 @@
+# Caddy gets and renews HTTPS certificates by itself. DNS for both names must point at this server first.
+# For a local test, set APP_DOMAIN=http://localhost (the explicit http:// switches HTTPS off).
+{$APP_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy web:3000
+}
+
+# Only answers if the Shopify app is running (docker compose --profile shopify up -d).
+{$SHOPIFY_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy shopify:3000
+}

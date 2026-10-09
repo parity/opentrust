@@ -1,0 +1,13 @@
+<% content_for :title, "Account status" %>
+<div class="card mx-auto max-w-xl text-center">
+  <% if current_merchant.rejected? %>
+    <h1 class="text-2xl font-bold">Registration not approved</h1>
+    <p class="mt-2 text-ink-soft"><%= current_merchant.rejection_reason %></p>
+  <% elsif current_merchant.suspended? %>
+    <h1 class="text-2xl font-bold">Account suspended</h1>
+    <p class="mt-2 text-ink-soft">Contact us to resolve this.</p>
+  <% else %>
+    <h1 class="text-2xl font-bold">Waiting for approval</h1>
+    <p class="mt-2 text-ink-soft">An admin is reviewing <%= current_merchant.business_name %>. You'll get an email when it's approved, with <%= number_with_delimiter(OpenTrust::FREE_CHECKS) %> free checks ready to use.</p>
+  <% end %>
+</div>

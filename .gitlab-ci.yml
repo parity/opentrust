@@ -1,0 +1,66 @@
+# GitLab CI for OpenTrust: run every test suite on each push and merge request.
+# Deploying is deliberate and done by hand on the server (deploy/droplet/README.md): ssh in as deployer and run deploy.sh.
+stages: [test]
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH
+
+rails:
+  stage: test
+  image: ruby:3.2.2   # must match .ruby-version and the Gemfile (the generic ruby:3.2 tag moves on and would be rejected)
+  services:
+    - name: postgres:16-alpine
+      alias: postgres
+  variables:
+    POSTGRES_PASSWORD: ci
+    RAILS_ENV: test
+    DATABASE_URL: postgres://postgres:ci@postgres:5432/opentrust_test
+    BUNDLE_PATH: vendor/bundle
+  cache:
+    key: { files: [Gemfile.lock] }
+    paths: [vendor/bundle]
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq libpq-dev > /dev/null
+    - bundle install --jobs 4 --quiet
+  script:
+    - bin/rails tailwindcss:build        # the stylesheet is built, not committed
+    - bin/rails db:create db:schema:load
+    - bundle exec rspec
+
+shopify-app:
+  stage: test
+  image: node:22
+  variables: { DATABASE_URL: "postgresql://localhost:5432/ci" }   # only so Prisma can generate its client
+  cache:
+    key: { files: [integrations/shopify/app/package-lock.json] }
+    paths: [integrations/shopify/app/node_modules]
+  script:
+    - cd integrations/shopify/app
+    - npm ci --no-audit --no-fund
+    - npx prisma generate
+    - npm run typecheck
+    - npm test
+    - npm run build
+
+node-sdk:
+  stage: test
+  image: node:22
+  script: [cd sdks/node, npm test]
+
+ruby-sdk:
+  stage: test
+  image: ruby:$RUBY_VERSION   # the gem claims Ruby >= 2.7, so test the oldest and the newest we run
+  parallel:
+    matrix:
+      - RUBY_VERSION: ["2.7", "3.2.2"]
+  script: [cd sdks/ruby, ruby -Ilib test/client_test.rb]
+
+woocommerce-plugin:
+  stage: test
+  image: php:8.2-cli
+  script:
+    - cd integrations/woocommerce/opentrust-for-woocommerce
+    - for f in $(find . -name '*.php'); do php -l "$f" | grep -v '^No syntax errors' || true; done
+    - php tests/run.php

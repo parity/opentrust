@@ -1,0 +1,23 @@
+<% content_for :title, "Verify your email" %>
+<div class="mx-auto max-w-md">
+  <h1 class="text-3xl font-bold tracking-tight">Check your email</h1>
+  <p class="mt-2 text-ink-soft">We sent a 6-digit code to <strong class="text-ink"><%= current_merchant_user.email %></strong>. It expires in 10 minutes.</p>
+
+  <% if Rails.env.development? && session[:dev_otp] %>
+    <p class="mt-4 rounded-md border border-dashed border-amber bg-amber-wash p-3 text-sm"><strong>Dev only:</strong> email isn't delivered here, so your code is <span class="data font-bold"><%= session[:dev_otp] %></span>. This box never appears in production.</p>
+  <% end %>
+
+  <%= form_with url: verify_email_path, class: "card mt-6 space-y-4" do %>
+    <div>
+      <%= label_tag :code, "Verification code", class: "label" %>
+      <%= text_field_tag :code, nil, inputmode: "numeric", autocomplete: "one-time-code", pattern: "[0-9]{6}", maxlength: 6, required: true, autofocus: true, placeholder: "123456", class: "field data text-center text-2xl tracking-[0.4em]" %>
+    </div>
+    <%= submit_tag "Verify email", class: "btn w-full" %>
+  <% end %>
+
+  <div class="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-ink-soft">
+    <%= button_to "Send a new code", verify_email_resend_path, class: "text-blue underline cursor-pointer" %>
+    <%= button_to "Log out", logout_path, method: :delete, class: "underline cursor-pointer" %>
+  </div>
+  <p class="mt-4 text-xs text-ink-soft">Can't find it? Check spam. Wrong email address? Log out and write to <%= mail_to OpenTrust::FEEDBACK_EMAIL, nil, class: "underline" %>.</p>
+</div>

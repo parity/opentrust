@@ -1,0 +1,12 @@
+<% content_for :title, "Report a number" %>
+<%= render "portal/nav" %>
+<h1 class="text-3xl font-bold tracking-tight">Share an experience with a number</h1>
+<p class="mt-1 max-w-xl text-ink-soft">Other approved merchants will see the reason and your note, not your business name. Stick to facts you saw yourself.</p>
+<%= form_with url: portal_reports_path, class: "card mt-5 max-w-lg space-y-4" do %>
+  <div><%= label_tag :phone, "Mobile number", class: "label" %><%= telephone_field_tag :phone, params[:phone], required: true, class: "field" %></div>
+  <div><%= label_tag :reason_code, "What happened", class: "label" %><%= select_tag :reason_code, grouped_options_for_select(FraudReport::REASON_GROUPS.map { |g, codes| [g, codes.map { |c| [FraudReport.label_for(c), c] }] }, params[:reason_code]), class: "field" %></div>
+  <div><%= label_tag :notes, "Note (optional, 500 characters)", class: "label" %><%= text_area_tag :notes, params[:notes], maxlength: 500, rows: 3, placeholder: "Facts only, e.g. 'Refused 3 COD orders in March'", class: "field" %>
+    <p class="mt-1 text-xs text-ink-soft">No names, insults, accusations, emails, links or phone numbers.</p></div>
+  <label class="flex items-start gap-2 text-sm"><%= check_box_tag :confirm_first_hand, "1", params[:confirm_first_hand] == "1", required: true, class: "mt-1" %><span>This is based on my own business's direct experience, and it's accurate to the best of my knowledge.</span></label>
+  <%= submit_tag "Submit report", class: "btn" %>
+<% end %>

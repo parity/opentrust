@@ -1,0 +1,42 @@
+# Shopify app configuration for OpenTrust.
+# `shopify app config link` fills in client_id (and the URLs) from your Partner Dashboard app.
+client_id = ""
+name = "OpenTrust"
+embedded = true
+
+[access_scopes]
+# read_orders: receive new orders. write_orders: tag an order and add a note to it.
+scopes = "read_orders,write_orders"
+
+[webhooks]
+api_version = "2026-10"
+
+  # Handled by: app/routes/webhooks.orders.create.tsx
+  # Reading an order's phone number needs "protected customer data" access (see README).
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/orders/create"
+  topics = ["orders/create"]
+
+  # Handled by: app/routes/webhooks.app.uninstalled.tsx
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/app/uninstalled"
+  topics = ["app/uninstalled"]
+
+  # Handled by: app/routes/webhooks.app.scopes_update.tsx
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/app/scopes_update"
+  topics = ["app/scopes_update"]
+
+  # Mandatory privacy webhooks for public apps.
+  # See: https://shopify.dev/docs/apps/build/privacy-law-compliance
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/customers/data_request"
+  compliance_topics = ["customers/data_request"]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/customers/redact"
+  compliance_topics = ["customers/redact"]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/shop/redact"
+  compliance_topics = ["shop/redact"]

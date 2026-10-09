@@ -1,0 +1,20 @@
+<% content_for :title, "API keys" %>
+<%= render "portal/nav" %>
+<h1 class="text-3xl font-bold tracking-tight">API keys</h1>
+<% if @token %>
+  <div class="card mt-4 border-teal">
+    <p class="font-semibold">Copy your key now. It won't be shown again.</p>
+    <p class="data mt-2 break-all rounded bg-paper p-3 text-sm"><%= @token %></p>
+  </div>
+<% end %>
+<%= form_with url: portal_api_keys_path, data: { turbo: false }, class: "mt-4 flex flex-wrap items-end gap-3" do %>
+  <div><%= label_tag :label, "Label (optional)", class: "label" %><%= text_field_tag :label, nil, placeholder: "e.g. checkout service", class: "field" %></div>
+  <%= submit_tag "Create API key", class: "btn" %>
+<% end %>
+<div class="mt-6 overflow-x-auto"><table class="w-full text-left text-sm"><tbody class="divide-y divide-ink/20">
+  <% @keys.each do |k| %>
+    <tr><td class="data py-2"><%= k.prefix %>…</td><td><%= k.label %></td><td class="text-ink-soft"><%= k.last_used_at ? "used #{time_ago_in_words(k.last_used_at)} ago" : "never used" %></td>
+    <td class="text-right"><% if k.revoked_at %><span class="text-ink-soft">Revoked</span><% else %><%= button_to "Revoke", portal_api_key_path(k), method: :delete, class: "text-amber underline cursor-pointer" %><% end %></td></tr>
+  <% end %>
+  <% if @keys.empty? %><tr><td class="py-4 text-ink-soft">No keys yet.</td></tr><% end %>
+</tbody></table></div>

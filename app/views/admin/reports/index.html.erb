@@ -1,0 +1,7 @@
+<h1 class="text-3xl font-bold">Reports</h1>
+<div class="mt-4 overflow-x-auto"><table class="w-full text-left text-sm"><tbody class="divide-y divide-ink/20">
+  <% @reports.each do |r| %>
+    <tr><td class="data py-2"><%= r.phone_ciphertext %></td><td><%= r.merchant.business_name %></td><td><%= FraudReport.label_for(r.reason_code) %></td><td class="text-ink-soft"><%= r.notes %></td><td><%= r.status %></td>
+    <td><% if r.status == "active" %><%= button_to "Remove", remove_admin_report_path(r), class: "text-amber underline cursor-pointer" %><% end %></td></tr>
+  <% end %>
+</tbody></table></div>

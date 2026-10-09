@@ -1,0 +1,111 @@
+# OpenTrust on a single server: Postgres (data on a block-storage volume), the website/API, optionally the Shopify app,
+# and Caddy for automatic HTTPS. Full walkthrough: deploy/droplet/README.md
+# COMPOSE_PROJECT_NAME is only set for a second deployment on the same server (staging); see deploy/droplet/README.md.
+name: ${COMPOSE_PROJECT_NAME:-opentrust}
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      OPENTRUST_DB_PASSWORD: ${OPENTRUST_DB_PASSWORD:?set OPENTRUST_DB_PASSWORD in .env}
+      SHOPIFY_DB_PASSWORD: ${SHOPIFY_DB_PASSWORD:?set SHOPIFY_DB_PASSWORD in .env}
+    command: ["postgres", "-c", "shared_buffers=256MB", "-c", "max_connections=60", "-c", "log_min_duration_statement=500"]
+    volumes:
+      # DATA_DIR is where your DigitalOcean Volume is mounted, e.g. /mnt/opentrust_data. Keeping the data on a volume means
+      # it survives rebuilding the Droplet and can be snapshotted on its own.
+      - ${DATA_DIR:?set DATA_DIR in .env}/postgres:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    shm_size: 256mb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    # No published ports: only the other containers on this compose network can reach the database.
+
+  web:
+    image: ${WEB_IMAGE:?set WEB_IMAGE (deploy.sh writes images.env)}
+    build:
+      context: ../..           # the repository root; its Dockerfile builds the website
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    # Only what the website needs. The database superuser password, the Shopify keys and the like never reach this container.
+    environment:
+      RAILS_ENV: production
+      DATABASE_URL: postgres://opentrust:${OPENTRUST_DB_PASSWORD}@db:5432/opentrust
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE:?set SECRET_KEY_BASE in .env}
+      PHONE_HASH_PEPPER: ${PHONE_HASH_PEPPER:?set PHONE_HASH_PEPPER in .env}
+      AR_ENC_PRIMARY_KEY: ${AR_ENC_PRIMARY_KEY:?set AR_ENC_PRIMARY_KEY in .env}
+      AR_ENC_DETERMINISTIC_KEY: ${AR_ENC_DETERMINISTIC_KEY:?set AR_ENC_DETERMINISTIC_KEY in .env}
+      AR_ENC_SALT: ${AR_ENC_SALT:?set AR_ENC_SALT in .env}
+      RESEND_API_KEY: ${RESEND_API_KEY:?set RESEND_API_KEY in .env}
+      APP_HOST: ${APP_HOST:-opentrust.in}
+      MAIL_FROM: ${MAIL_FROM:-OpenTrust <noreply@opentrust.in>}
+      FEEDBACK_EMAIL: ${FEEDBACK_EMAIL:-feedback@opentrust.in}
+      GRIEVANCE_EMAIL: ${GRIEVANCE_EMAIL:-grievance@opentrust.in}
+      COFFEE_URL: ${COFFEE_URL:-}
+      REPO_URL: ${REPO_URL:-}
+      SDKS_PUBLISHED: ${SDKS_PUBLISHED:-false}
+      NOINDEX: ${NOINDEX:-}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:3000/up >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 40s
+
+  shopify:
+    image: ${SHOPIFY_IMAGE:-opentrust-shopify-not-configured}
+    build:
+      context: ../../integrations/shopify/app
+    profiles: ["shopify"]  # deploy.sh starts it when RUN_SHOPIFY=yes
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://opentrust_shopify:${SHOPIFY_DB_PASSWORD}@db:5432/opentrust_shopify
+      SHOPIFY_APP_URL: ${SHOPIFY_APP_URL:-https://shopify.opentrust.in}
+      SCOPES: read_orders,write_orders
+      SHOPIFY_API_KEY: ${SHOPIFY_API_KEY:-}
+      SHOPIFY_API_SECRET: ${SHOPIFY_API_SECRET:-}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+
+  # How traffic gets in. Choose ONE by setting ENTRY in the env file (see .env.example):
+  #   tunnel (recommended): Cloudflare Tunnel. No open web ports, no certificates, Cloudflare routes each hostname to a container.
+  #   caddy:                the server serves HTTPS itself (needs ports 80/443 open and DNS pointing here).
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    profiles: ["tunnel"]
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      # The tunnel's hostnames (opentrust.in -> http://web:3000, shopify.opentrust.in -> http://shopify:3000) are set in the
+      # Cloudflare dashboard (Zero Trust > Networks > Tunnels), not here.
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}   # deploy.sh insists it is set when ENTRY=tunnel
+    depends_on:
+      - web
+
+  caddy:
+    image: caddy:2-alpine
+    profiles: ["caddy"]
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:-opentrust.in}
+      SHOPIFY_DOMAIN: ${SHOPIFY_DOMAIN:-shopify.opentrust.in}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+
+volumes:
+  caddy_data:
+  caddy_config:
