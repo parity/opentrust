@@ -1,0 +1,10 @@
+<% content_for :preheader, "#{number_with_delimiter(OpenTrust::FREE_CHECKS)} free checks are ready. Log in to create your API key." %>
+<% content_for :reason, "You're receiving this because #{@merchant.business_name} was registered on opentrust.in with this address." %>
+<%= mail_h1 "You're approved" %>
+<%= mail_p do %>Hi <%= @merchant.name %>, welcome to OpenTrust. <strong><%= @merchant.business_name %></strong> is approved and your account has <%= mail_highlight "#{number_with_delimiter(OpenTrust::FREE_CHECKS)} free checks" %>.<% end %>
+<%= mail_button "Log in and create your API key", login_url %>
+<%= mail_p do %><strong>To get started</strong><% end %>
+<%= mail_steps safe_join(["Create an API key from your dashboard. It's shown once, so keep it somewhere safe."]),
+               safe_join(["Use the Ruby gem or the Node.js package from ", mail_link("Libraries", libraries_url), ", or call the ", mail_link("API", docs_url), " directly."]),
+               "Check a customer's number before you ship, and share your own experiences so other merchants benefit too." %>
+<%= mail_p(muted: true) do %>Every result carries a short notice that reports are unverified observations, not a finding about anyone. Please show it to anyone who sees a result. Need more checks later? Just write to us.<% end %>

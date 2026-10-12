@@ -1,0 +1,9 @@
+<% content_for :preheader, "We'll review #{@merchant.business_name} and email you as soon as there's a decision." %>
+<% content_for :reason, "You're receiving this because #{@merchant.business_name} was registered on opentrust.in with this address." %>
+<%= mail_h1 "We've received your registration" %>
+<%= mail_p do %>Hi <%= @merchant.name %>, thanks for registering <strong><%= @merchant.business_name %></strong>. We check every business by hand, so it won't be instant.<% end %>
+<%= mail_p do %><strong>What happens next</strong><% end %>
+<%= mail_steps "We review your details.",
+               "You get an email here as soon as there's a decision.",
+               safe_join(["Once approved, you log in, create an API key and make your first check. The ", mail_link("API docs", docs_url), " are ready when you are."]) %>
+<%= mail_p(muted: true) do %>Nothing more is needed from you right now.<% end %>

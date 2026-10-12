@@ -1,0 +1,15 @@
+<% content_for :preheader, "We couldn't approve #{@merchant.business_name} yet. Here's why." %>
+<% content_for :reason, "You're receiving this because #{@merchant.business_name} was registered on opentrust.in with this address." %>
+<%= mail_h1 "About your registration" %>
+<%= mail_p do %>Hi <%= @merchant.name %>, we couldn't approve <strong><%= @merchant.business_name %></strong> yet.<% end %>
+<% if @merchant.rejection_reason.present? %>
+  <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin:4px 0 20px;">
+    <tr>
+      <td bgcolor="#EEEFE9" style="background-color:#EEEFE9; border-left:4px solid #F0A020; border-radius:6px; padding:14px 16px; font-family:<%= MailerHelper::FONT %>; font-size:16px; line-height:1.55; color:#151515;">
+        <span style="font-size:13px; font-weight:800; color:#5A5C52;">Reason</span><br><%= @merchant.rejection_reason %>
+      </td>
+    </tr>
+  </table>
+<% end %>
+<%= mail_p do %>If something was missing or wrong, tell us and we'll take another look.<% end %>
+<%= mail_button "Write to us", "mailto:#{OpenTrust::FEEDBACK_EMAIL}?subject=#{ERB::Util.url_encode("Registration for #{@merchant.business_name}")}" %>

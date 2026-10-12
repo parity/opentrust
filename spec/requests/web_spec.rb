@@ -15,7 +15,7 @@ RSpec.describe "Web flow", type: :request do
     get "/portal"
     expect(response).to redirect_to("/verify-email")
 
-    code = ActionMailer::Base.deliveries.last.body.to_s[/\b\d{6}\b/]
+    code = last_mail_code
     expect(code).to be_present
     post "/verify-email", params: { code: code }
     expect(response).to redirect_to("/portal")
@@ -44,7 +44,7 @@ RSpec.describe "Web flow", type: :request do
   it "admin can remove a report" do
     admin = AdminUser.create!(email: "a@opentrust.test", password: "adminpass")
     m = create(:merchant, checks_remaining: 0)
-    report = ReportService.call(m, phone: "9876543210", reason_code: "other")
+    report = ReportService.call(m, phone: "9876543210", reason_code: "chargeback")
     post "/admin/login", params: { email: admin.email, password: "adminpass" }
     post "/admin/reports/#{report.id}/remove"
     expect(report.reload.status).to eq("removed")
@@ -65,7 +65,7 @@ RSpec.describe "Email verification", type: :request do
 
   it "rejects a wrong code, locks after too many attempts, and never stores the code in plaintext" do
     user = register!
-    code = ActionMailer::Base.deliveries.last.body.to_s[/\b\d{6}\b/]
+    code = last_mail_code
     expect(user.reload.otp_digest).not_to include(code)
     post "/verify-email", params: { code: "000000" }
     expect(response).to have_http_status(:unprocessable_entity)
@@ -77,7 +77,7 @@ RSpec.describe "Email verification", type: :request do
 
   it "rejects an expired code" do
     user = register!("e@acme.test")
-    code = ActionMailer::Base.deliveries.last.body.to_s[/\b\d{6}\b/]
+    code = last_mail_code
     user.update!(otp_expires_at: 1.minute.ago)
     post "/verify-email", params: { code: code }
     expect(user.reload.email_verified?).to be(false)
@@ -147,7 +147,7 @@ RSpec.describe RetentionPurge do
   def report(merchant, created:, status: "active", hold: false, phone: SecureRandom.hex(4))
     p = PhoneNormalizer.call("98#{rand(10**8).to_s.rjust(8, '0')}")
     FraudReport.create!(merchant: merchant, phone_hash: p[:hash] + phone, phone_ciphertext: p[:e164], phone_last4: p[:last4],
-                        reason_code: "other", status: status, legal_hold: hold, created_at: created, updated_at: created)
+                        reason_code: "chargeback", status: status, legal_hold: hold, created_at: created, updated_at: created)
   end
 
   it "deletes expired and long-removed reports, keeps recent ones and anything on legal hold" do
@@ -156,13 +156,14 @@ RSpec.describe RetentionPurge do
     held     = report(m, created: 80.months.ago, hold: true)
     recent   = report(m, created: 4.years.ago)
     gone     = report(m, created: 4.months.ago, status: "removed")
+    withdrawn = report(m, created: 4.months.ago, status: "withdrawn")
     just_now = report(m, created: 10.days.ago, status: "removed")
     AuditLog.create!(action: "x", created_at: 4.years.ago)
     fresh_log = AuditLog.create!(action: "y", created_at: 1.month.ago)
 
     counts = RetentionPurge.call
-    expect(counts).to eq(expired_reports: 1, removed_reports: 1, audit_logs: 1)
-    expect(FraudReport.where(id: [old.id, gone.id])).to be_empty
+    expect(counts).to eq(expired_reports: 1, removed_reports: 2, audit_logs: 1)
+    expect(FraudReport.where(id: [old.id, gone.id, withdrawn.id])).to be_empty
     expect(FraudReport.where(id: [held.id, recent.id, just_now.id]).count).to eq(3)
     expect(AuditLog.where(id: fresh_log.id)).to exist
   end

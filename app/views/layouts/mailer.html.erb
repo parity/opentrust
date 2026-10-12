@@ -1,13 +1,55 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <meta name="supported-color-schemes" content="light">
+    <title>OpenTrust</title>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=Nunito:wght@400;700;800&display=swap" rel="stylesheet">
     <style>
-      /* Email styles need to be inline */
+      body { margin: 0; padding: 0; -webkit-text-size-adjust: 100%; }
+      img { border: 0; outline: none; text-decoration: none; }
+      a { color: inherit; }
+      @media (max-width: 620px) {
+        .card { padding: 26px 20px !important; }
+        .otp { font-size: 30px !important; letter-spacing: 6px !important; }
+      }
     </style>
   </head>
-
-  <body>
-    <%= yield %>
+  <body style="margin:0; padding:0; background-color:#EEEFE9;" bgcolor="#EEEFE9">
+    <%# The preheader is the grey preview line next to the subject in an inbox. %>
+    <div style="display:none; max-height:0; overflow:hidden; opacity:0; color:#EEEFE9; font-size:1px; line-height:1px;"><%= yield :preheader %>&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;</div>
+    <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#EEEFE9" style="background-color:#EEEFE9;">
+      <tr>
+        <td align="center" style="padding:28px 16px 36px;">
+          <table role="presentation" width="600" border="0" cellpadding="0" cellspacing="0" style="width:100%; max-width:600px;">
+            <tr>
+              <td align="left" style="padding:0 4px 18px;">
+                <a href="<%= root_url %>"><img src="<%= mail_logo_url %>" width="160" alt="OpenTrust" style="display:block; width:160px; height:auto;"></a>
+              </td>
+            </tr>
+            <tr>
+              <td class="card" bgcolor="#FFFFFF" style="background-color:#FFFFFF; border:1px solid #D2D4C8; border-top:4px solid #F0A020; border-radius:12px; padding:36px 36px 28px;">
+                <%= yield %>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:22px 4px 0; font-family:<%= MailerHelper::FONT %>; font-size:13px; line-height:1.6; color:#5A5C52;">
+                <% if content_for?(:reason) %><p style="margin:0 0 12px;"><%= yield :reason %></p><% end %>
+                <p style="margin:0 0 12px;">Questions? Write to <a href="mailto:<%= OpenTrust::FEEDBACK_EMAIL %>" style="color:#1D4AFF;"><%= OpenTrust::FEEDBACK_EMAIL %></a>.</p>
+                <p style="margin:0 0 12px;">
+                  <a href="<%= privacy_url %>" style="color:#5A5C52;">Privacy</a> &nbsp;·&nbsp;
+                  <a href="<%= terms_url %>" style="color:#5A5C52;">Terms</a> &nbsp;·&nbsp;
+                  <a href="<%= faq_url %>" style="color:#5A5C52;">FAQ</a> &nbsp;·&nbsp;
+                  <a href="<%= docs_url %>" style="color:#5A5C52;">API docs</a>
+                </p>
+                <p style="margin:0; color:#151515; font-weight:700;">Built proudly in India, for India 🇮🇳 &nbsp;by <a href="https://www.paritycube.com/" style="color:#151515;">ParityCube</a></p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
   </body>
 </html>

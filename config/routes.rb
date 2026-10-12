@@ -4,6 +4,9 @@ Rails.application.routes.draw do
       post "lookups", to: "lookups#create"
       post "lookups/batch", to: "lookups#batch"
       post "reports", to: "reports#create"
+      post "reports/batch", to: "reports#batch"
+      delete "reports", to: "reports#destroy"
+      get "reason_codes", to: "reason_codes#index"
       get "me", to: "me#show"
     end
   end

@@ -1,5 +1,5 @@
 const DEFAULT_BASE_URL = "https://opentrust.in/api/v1";
-const VERSION = "0.1.0";
+const VERSION = "0.2.0";
 
 /** Base class. Catch this to handle anything that goes wrong talking to OpenTrust. */
 export class OpenTrustError extends Error {
@@ -14,22 +14,31 @@ export class ConnectionError extends OpenTrustError {}       // network failure 
 export class AuthenticationError extends OpenTrustError {}   // 401
 export class NoChecksError extends OpenTrustError {}         // 402: allowance used up
 export class NotApprovedError extends OpenTrustError {}      // 403
+export class NotFoundError extends OpenTrustError {}         // 404: no active report of yours for that number (withdrawing)
 export class DuplicateReportError extends OpenTrustError {}  // 409
 export class InvalidRequestError extends OpenTrustError {}   // 422
 export class RateLimitError extends OpenTrustError {}        // 429
 export class ServerError extends OpenTrustError {}           // 5xx
 
-const ERROR_BY_STATUS = { 401: AuthenticationError, 402: NoChecksError, 403: NotApprovedError, 409: DuplicateReportError, 422: InvalidRequestError, 429: RateLimitError };
+const ERROR_BY_STATUS = { 401: AuthenticationError, 402: NoChecksError, 403: NotApprovedError, 404: NotFoundError, 409: DuplicateReportError, 422: InvalidRequestError, 429: RateLimitError };
+
+function toPayload({ phone, reasonCode, notes, incidentAt, confirmedBy, evidenceRef }) {
+  const incident = incidentAt instanceof Date ? incidentAt.toISOString().slice(0, 10) : incidentAt;
+  return { phone, reason_code: reasonCode, ...(notes ? { notes } : {}), ...(incident ? { incident_at: incident } : {}), ...(confirmedBy ? { confirmed_by: confirmedBy } : {}), ...(evidenceRef ? { evidence_ref: evidenceRef } : {}) };
+}
 
 function toLookup(h, extra = {}) {
   return {
     phoneLast4: h.phone_last4,
     reported: (h.report_count ?? 0) > 0,
     reportCount: h.report_count ?? 0,
+    ownReport: h.own_report === true,
     reports: (h.reports ?? []).map((r) => ({
       reasonCode: r.reason_code,
       reason: r.reason,
       notes: r.notes ?? null,
+      incidentAt: r.incident_at ?? null,
+      confirmedBy: r.confirmed_by ?? null,
       reportedAt: r.reported_at,
       reporterVerified: r.reporter_verified,
     })),
@@ -61,10 +70,38 @@ export class OpenTrust {
     return body.results.map((r) => toLookup(r, { notice: body.notice, checksRemaining: body.checks_remaining }));
   }
 
-  /** Share an experience with a number. Optional, and doesn't change your allowance. */
-  async report({ phone, reasonCode, notes }) {
-    const body = await this.#request("POST", "/reports", { phone, reason_code: reasonCode, ...(notes ? { notes } : {}) });
+  /**
+   * Share an experience with a number. Optional, and doesn't change your allowance.
+   * incidentAt: when it happened (a Date or an ISO 8601 string); can't be in the future.
+   */
+  async report(report) {
+    const body = await this.#request("POST", "/reports", toPayload(report));
     return { id: body.id, phoneLast4: body.phone_last4 };
+  }
+
+  /**
+   * Share up to 100 experiences at once. Each is handled on its own, so one bad row never stops the rest.
+   * Resolves to one result per report, in order: status is "recorded", "duplicate" (already shared; treat as done) or "invalid".
+   */
+  async reportMany(reports) {
+    if (!Array.isArray(reports) || reports.length < 1 || reports.length > 100) throw new RangeError("reportMany takes 1 to 100 reports");
+    const body = await this.#request("POST", "/reports/batch", { reports: reports.map(toPayload) });
+    return body.results.map((r) => ({
+      index: r.index, status: r.status, id: r.id ?? null, phoneLast4: r.phone_last4 ?? null,
+      errorCode: r.error?.code ?? null, errorMessage: r.error?.message ?? null,
+    }));
+  }
+
+  /** Withdraw your own report for a number. Rejects with NotFoundError if you have no active report for it. */
+  async withdrawReport(phone) {
+    const body = await this.#request("DELETE", "/reports", { phone });
+    return { phoneLast4: body.phone_last4, status: body.status };
+  }
+
+  /** The reason codes with their labels and descriptions. */
+  async reasonCodes() {
+    const body = await this.#request("GET", "/reason_codes");
+    return body.reason_codes.map((c) => ({ code: c.code, group: c.group, label: c.label, description: c.description, useWhen: c.use_when, notWhen: c.not_when }));
   }
 
   /** Your remaining checks and usage. */

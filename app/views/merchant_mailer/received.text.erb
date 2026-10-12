@@ -1,0 +1,12 @@
+Hi <%= @merchant.name %>,
+
+Thanks for registering <%= @merchant.business_name %>. We check every business by hand, so it won't be instant.
+
+What happens next:
+1. We review your details.
+2. You get an email here as soon as there's a decision.
+3. Once approved, you log in, create an API key and make your first check. API docs: <%= docs_url %>
+
+Nothing more is needed from you right now.
+
+<%= "You're receiving this because #{@merchant.business_name} was registered on opentrust.in with this address." %>

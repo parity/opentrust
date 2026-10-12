@@ -4,9 +4,13 @@
 <p class="mt-1 max-w-xl text-ink-soft">Other approved merchants will see the reason and your note, not your business name. Stick to facts you saw yourself.</p>
 <%= form_with url: portal_reports_path, class: "card mt-5 max-w-lg space-y-4" do %>
   <div><%= label_tag :phone, "Mobile number", class: "label" %><%= telephone_field_tag :phone, params[:phone], required: true, class: "field" %></div>
-  <div><%= label_tag :reason_code, "What happened", class: "label" %><%= select_tag :reason_code, grouped_options_for_select(FraudReport::REASON_GROUPS.map { |g, codes| [g, codes.map { |c| [FraudReport.label_for(c), c] }] }, params[:reason_code]), class: "field" %></div>
+  <div><%= label_tag :reason_code, "What happened", class: "label" %><%= select_tag :reason_code, grouped_options_for_select(FraudReport::REASON_GROUPS.map { |g, codes| [g, codes.map { |c| [FraudReport.label_for(c), c] }] }, params[:reason_code]), class: "field" %><p class="mt-1 text-xs text-ink-soft">Not sure which one? Read <%= link_to "when to use each reason", docs_path(anchor: "reasons"), class: "text-blue underline", target: "_blank", rel: "noopener" %>. Share the number of the person who did it, never of a possible victim.</p></div>
   <div><%= label_tag :notes, "Note (optional, 500 characters)", class: "label" %><%= text_area_tag :notes, params[:notes], maxlength: 500, rows: 3, placeholder: "Facts only, e.g. 'Refused 3 COD orders in March'", class: "field" %>
     <p class="mt-1 text-xs text-ink-soft">No names, insults, accusations, emails, links or phone numbers.</p></div>
+  <div><%= label_tag :confirmed_by, "Confirmed by (optional)", class: "label" %><%= select_tag :confirmed_by, options_for_select([["Not confirmed by anyone else", ""], ["A bank", "bank"], ["A payment gateway", "payment_gateway"], ["Law enforcement or a cyber cell", "law_enforcement"]], params[:confirmed_by]), class: "field" %>
+    <p class="mt-1 text-xs text-ink-soft">Only if they told you so. Other merchants see who you say confirmed it, and OpenTrust does not verify it.</p></div>
+  <div><%= label_tag :evidence_ref, "Your reference (optional, private)", class: "label" %><%= text_field_tag :evidence_ref, params[:evidence_ref], maxlength: 100, class: "field" %>
+    <p class="mt-1 text-xs text-ink-soft">A complaint or ticket number. Only OpenTrust administrators see it, if a report is questioned. Needs the field above.</p></div>
   <label class="flex items-start gap-2 text-sm"><%= check_box_tag :confirm_first_hand, "1", params[:confirm_first_hand] == "1", required: true, class: "mt-1" %><span>This is based on my own business's direct experience, and it's accurate to the best of my knowledge.</span></label>
   <%= submit_tag "Submit report", class: "btn" %>
 <% end %>

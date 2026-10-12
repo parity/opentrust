@@ -1,4 +1,5 @@
 require "minitest/autorun"
+require "date"
 require_relative "../lib/opentrust"
 
 class ClientTest < Minitest::Test
@@ -47,8 +48,65 @@ class ClientTest < Minitest::Test
     refute_includes JSON.parse(seen), "notes"
   end
 
+  def test_lookup_reads_own_report_and_incident_date
+    body = { "phone_last4" => "3210", "report_count" => 1, "own_report" => true, "reports" => [{ "reason_code" => "chargeback", "incident_at" => "2026-08-14", "reported_at" => "2026-10-01" }] }
+    result = client(body: body).lookup("9876543210")
+    assert result.own_report?
+    assert_equal "2026-08-14", result.reports.first.incident_at
+    refute client(body: { "report_count" => 0, "reports" => [] }).lookup("9000000001").own_report?
+  end
+
+  def test_report_sends_incident_at_as_iso8601
+    seen = nil
+    client(status: 201, body: { "id" => 1, "phone_last4" => "3210" }) { |_v, _u, _h, b| seen = JSON.parse(b) }
+      .report(phone: "9876543210", reason_code: "chargeback", incident_at: Date.new(2026, 8, 14))
+    assert_equal "2026-08-14", seen["incident_at"]
+  end
+
+  def test_report_sends_confirmation_and_lookup_reads_it
+    seen = nil
+    client(status: 201, body: { "id" => 1, "phone_last4" => "3210" }) { |_v, _u, _h, b| seen = JSON.parse(b) }
+      .report(phone: "9876543210", reason_code: "chargeback", confirmed_by: "payment_gateway", evidence_ref: "GW-1")
+    assert_equal({ "confirmed_by" => "payment_gateway", "evidence_ref" => "GW-1" }, seen.slice("confirmed_by", "evidence_ref"))
+    refute_includes seen.keys, "notes"
+    result = client(body: { "report_count" => 1, "reports" => [{ "reason_code" => "chargeback", "confirmed_by" => "bank" }] }).lookup("9876543210")
+    assert_equal "bank", result.reports.first.confirmed_by
+  end
+
+  def test_report_many_maps_each_result
+    body = { "results" => [{ "index" => 0, "status" => "recorded", "id" => 5, "phone_last4" => "3210" },
+                           { "index" => 1, "status" => "duplicate", "error" => { "code" => "duplicate_report", "message" => "dup" } },
+                           { "index" => 2, "status" => "invalid", "error" => { "code" => "invalid_phone", "message" => "bad" } }] }
+    seen = nil
+    results = client(body: body) { |v, u, _h, b| seen = [v, u, JSON.parse(b)] }
+              .report_many([{ phone: "9876543210", reason_code: "chargeback", incident_at: Date.new(2026, 8, 14) }, { "phone" => "9812345678", "reason_code" => "fake_order" }, { phone: "1", reason_code: "x" }])
+    assert_equal [:post, "https://opentrust.in/api/v1/reports/batch"], seen[0, 2]
+    assert_equal "2026-08-14", seen[2]["reports"][0]["incident_at"]
+    assert_equal [true, false, false], results.map(&:recorded?)
+    assert results[1].duplicate?
+    assert_equal "invalid_phone", results[2].error_code
+    assert_raises(ArgumentError) { client.report_many([]) }
+    assert_raises(ArgumentError) { client.report_many(Array.new(101) { { phone: "9876543210", reason_code: "chargeback" } }) }
+  end
+
+  def test_withdraw_report_sends_delete_and_raises_not_found
+    seen = nil
+    w = client(body: { "phone_last4" => "3210", "status" => "withdrawn" }) { |v, u, _h, b| seen = [v, u, JSON.parse(b)] }.withdraw_report("9876543210")
+    assert_equal [:delete, "https://opentrust.in/api/v1/reports", { "phone" => "9876543210" }], seen
+    assert_equal "withdrawn", w.status
+    err = assert_raises(OpenTrust::NotFoundError) { client(status: 404, body: { "error" => { "code" => "report_not_found", "message" => "none" } }).withdraw_report("9876543210") }
+    assert_equal "report_not_found", err.code
+  end
+
+  def test_reason_codes
+    codes = client(body: { "reason_codes" => [{ "code" => "chargeback", "group" => "Orders and payments", "label" => "Disputed a payment (chargeback)", "description" => "d.", "use_when" => "u", "not_when" => "n" }] }).reason_codes
+    assert_equal ["chargeback"], codes.map(&:code)
+    assert_equal "Orders and payments", codes.first.group
+    assert_equal ["u", "n"], [codes.first.use_when, codes.first.not_when]
+  end
+
   def test_errors_are_typed
-    { 401 => OpenTrust::AuthenticationError, 402 => OpenTrust::NoChecksError, 403 => OpenTrust::NotApprovedError,
+    { 401 => OpenTrust::AuthenticationError, 402 => OpenTrust::NoChecksError, 403 => OpenTrust::NotApprovedError, 404 => OpenTrust::NotFoundError,
       409 => OpenTrust::DuplicateReportError, 422 => OpenTrust::InvalidRequestError, 429 => OpenTrust::RateLimitError,
       503 => OpenTrust::ServerError }.each do |status, klass|
       err = assert_raises(klass) { client(status: status, body: { "error" => { "code" => "x", "message" => "boom" } }).lookup("9876543210") }

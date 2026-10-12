@@ -1,0 +1,9 @@
+Hi <%= @merchant.name %>,
+
+We couldn't approve <%= @merchant.business_name %> yet.
+<% if @merchant.rejection_reason.present? -%>
+Reason: <%= @merchant.rejection_reason %>
+<% end -%>
+If something was missing or wrong, write to <%= OpenTrust::FEEDBACK_EMAIL %> and we'll take another look.
+
+<%= "You're receiving this because #{@merchant.business_name} was registered on opentrust.in with this address." %>

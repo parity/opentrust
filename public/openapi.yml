@@ -5,18 +5,29 @@ security: [{ bearer: [] }]
 components:
   securitySchemes: { bearer: { type: http, scheme: bearer } }
   schemas:
+    ReportInput:
+      type: object
+      required: [phone, reason_code]
+      properties:
+        phone: { type: string }
+        reason_code: { type: string, enum: [cod_refusal, fake_order, return_abuse, chargeback, fake_payment_proof, third_party_payment_fraud, identity_fraud, document_mismatch, promo_abuse, otp_fraud, bank_impersonation, merchant_impersonation, phishing_link, kyc_scam, refund_scam, other], description: See GET /reason_codes. 'other' needs a note of at least 10 characters. }
+        notes: { type: string, maxLength: 500 }
+        incident_at: { type: string, description: ISO 8601 date or time, not in the future }
+        confirmed_by: { type: string, enum: [bank, payment_gateway, law_enforcement], description: Self-declared; shown to other merchants, not verified }
+        evidence_ref: { type: string, maxLength: 100, description: Private reference for administrators; never shown. Needs confirmed_by }
     Error: { type: object, properties: { error: { type: object, properties: { code: { type: string }, message: { type: string } } } } }
     LookupResult:
       type: object
       properties:
         phone_last4: { type: string }
         reported: { type: boolean }
-        report_count: { type: integer }
+        report_count: { type: integer, description: Reports from other merchants only }
+        own_report: { type: boolean, description: Whether you have shared this number yourself }
         notice: { type: string }
         checks_remaining: { type: integer }
         reports:
           type: array
-          items: { type: object, properties: { reason_code: { type: string }, reason: { type: string }, notes: { type: string, nullable: true }, reported_at: { type: string, format: date }, reporter_verified: { type: boolean } } }
+          items: { type: object, properties: { reason_code: { type: string }, reason: { type: string }, notes: { type: string, nullable: true }, incident_at: { type: string, format: date, nullable: true }, confirmed_by: { type: string, nullable: true, enum: [bank, payment_gateway, law_enforcement] }, reported_at: { type: string, format: date }, reporter_verified: { type: boolean } } }
 paths:
   /lookups:
     post:
@@ -31,8 +42,19 @@ paths:
   /reports:
     post:
       summary: Share an experience with a number
-      requestBody:
-        content: { application/json: { schema: { type: object, required: [phone, reason_code], properties: { phone: { type: string }, reason_code: { type: string, enum: [cod_refusal, fake_order, return_abuse, chargeback, fake_payment_proof, otp_fraud, bank_impersonation, merchant_impersonation, phishing_link, kyc_scam, refund_scam, identity_fraud, other] }, notes: { type: string, maxLength: 500 } } } } }
+      requestBody: { content: { application/json: { schema: { $ref: "#/components/schemas/ReportInput" } } } }
       responses: { "201": { description: Created }, "409": { description: Already reported by you }, "422": { description: Invalid } }
+    delete:
+      summary: Withdraw your own report for a number
+      parameters: [{ name: phone, in: query, schema: { type: string }, description: Or send it in a JSON body }]
+      requestBody: { content: { application/json: { schema: { type: object, properties: { phone: { type: string } } } } } }
+      responses: { "200": { description: Withdrawn }, "404": { description: No active report for that number } }
+  /reports/batch:
+    post:
+      summary: Share up to 100 experiences at once. One result per report; a bad row never stops the rest
+      requestBody: { content: { application/json: { schema: { type: object, required: [reports], properties: { reports: { type: array, minItems: 1, maxItems: 100, items: { $ref: "#/components/schemas/ReportInput" } } } } } } }
+      responses: { "200": { description: "results[] with status recorded, duplicate or invalid, plus a summary" }, "422": { description: Not a list of 1-100 reports } }
+  /reason_codes:
+    get: { summary: The reason codes with labels and descriptions, responses: { "200": { description: OK } } }
   /me:
     get: { summary: Checks remaining and usage, responses: { "200": { description: OK } } }

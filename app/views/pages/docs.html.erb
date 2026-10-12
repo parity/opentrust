@@ -3,7 +3,7 @@
 <div class="doc grid gap-10 lg:grid-cols-[200px_minmax(0,1fr)]">
   <aside class="hidden lg:block"><nav class="docnav sticky top-24 space-y-0.5" aria-label="On this page">
     <p class="px-2 pb-1 text-xs font-bold uppercase tracking-wide text-ink-soft">Guide</p>
-    <a href="#libraries">Libraries</a><a href="#auth">Authentication</a><a href="#lookup">Check a number</a><a href="#batch">Check many</a><a href="#share">Share an experience</a><a href="#me">Your checks</a><a href="#errors">Errors</a><a href="#responsibly">Using results</a>
+    <a href="#libraries">Libraries</a><a href="#auth">Authentication</a><a href="#lookup">Check a number</a><a href="#batch">Check many</a><a href="#share">Share an experience</a><a href="#share-many">Share many</a><a href="#withdraw">Withdraw a report</a><a href="#reasons">Reason codes</a><a href="#me">Your checks</a><a href="#errors">Errors</a><a href="#responsibly">Using results</a>
   </nav></aside>
 
   <div class="min-w-0 max-w-3xl space-y-12">
@@ -92,11 +92,13 @@ res = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) { |h| h.request(req
 result = JSON.parse(res.body)</code></pre>
       </div>
       <p class="mt-6 font-bold">Response <span class="code">200</span></p>
-      <div class="codeblock mt-2"><div class="codeblock-bar">response.json</div><pre><code><%= highlight_json({ phone_last4: "3210", reported: true, report_count: 1,
-        reports: [{ reason_code: "cod_refusal", reason: "Refused a cash-on-delivery order", notes: "Refused 3 COD orders", reported_at: "2026-10-01", reporter_verified: true }],
+      <div class="codeblock mt-2"><div class="codeblock-bar">response.json</div><pre><code><%= highlight_json({ phone_last4: "3210", reported: true, report_count: 1, own_report: false,
+        reports: [{ reason_code: "cod_refusal", reason: "Refused a cash-on-delivery order", notes: "Refused 3 COD orders", incident_at: "2026-09-28", confirmed_by: nil, reported_at: "2026-10-01", reporter_verified: true }],
         notice: "Reports are unverified observations shared by individual merchants. …", checks_remaining: 99_999 }) %></code></pre></div>
       <ul class="mt-4 list-disc space-y-1 pl-5">
         <li><span class="code">reports: []</span> and <span class="code">report_count: 0</span> mean no merchant has reported the number.</li>
+        <li><span class="code">report_count</span> and <span class="code">reports</span> only hold reports from <em>other</em> merchants. <span class="code">own_report</span> tells you whether you have shared this number yourself, so your own report is never counted as a signal from someone else.</li>
+        <li><span class="code">incident_at</span> is the date the merchant says it happened (or <span class="code">null</span>); <span class="code">reported_at</span> is the day it was shared. Recent incidents usually matter more than old ones.</li>
         <li>You never get the full number back, only <span class="code">phone_last4</span>, and never who reported.</li>
         <li><span class="code">notice</span> is included in every response. Please keep it in front of anyone who sees a result.</li>
       </ul>
@@ -110,7 +112,7 @@ result = JSON.parse(res.body)</code></pre>
   -H "Content-Type: application/json" \
   -d '{"phones": ["9876543210", "9000000001"]}'</code></pre></div>
       <p class="mt-4 font-bold">Response <span class="code">200</span></p>
-      <div class="codeblock mt-2"><div class="codeblock-bar">response.json</div><pre><code><%= highlight_json({ results: [{ phone_last4: "3210", reported: true, report_count: 1, reports: ["…"] }, { phone_last4: "0001", reported: false, report_count: 0, reports: [] }],
+      <div class="codeblock mt-2"><div class="codeblock-bar">response.json</div><pre><code><%= highlight_json({ results: [{ phone_last4: "3210", reported: true, report_count: 1, own_report: false, reports: ["…"] }, { phone_last4: "0001", reported: false, report_count: 0, own_report: false, reports: [] }],
         notice: "…", checks_remaining: 99_998 }) %></code></pre></div>
     </section>
 
@@ -121,19 +123,72 @@ result = JSON.parse(res.body)</code></pre>
   -H "Authorization: Bearer $OPENTRUST_KEY" \
   -d phone=9876543210 \
   -d reason_code=cod_refusal \
+  -d incident_at=2026-03-14 \
   -d "notes=Refused 3 COD orders in March"</code></pre></div>
-      <p class="mt-4"><span class="code">notes</span> is optional, up to 500 characters. No names, accusations, emails, links or phone numbers. Each merchant can share one report per number.</p>
-      <p class="mt-4 font-bold">Reason codes</p>
-      <div class="mt-2 space-y-4">
-        <% FraudReport::REASON_GROUPS.each do |group, codes| %>
+      <ul class="mt-4 list-disc space-y-1 pl-5">
+        <li><span class="code">reason_code</span> is one of the <a href="#reasons" class="text-blue underline">reason codes</a> below.</li>
+        <li><span class="code">notes</span> is optional, up to 500 characters, except for <span class="code">other</span>, which needs at least 10. No names, accusations, emails, links or phone numbers.</li>
+        <li><span class="code">incident_at</span> is optional: when it happened, as a date (<span class="code">2026-03-14</span>) or an ISO 8601 time. It can't be in the future.</li>
+        <li><span class="code">confirmed_by</span> is optional: <span class="code">bank</span>, <span class="code">payment_gateway</span> or <span class="code">law_enforcement</span>, only if they told you the activity was confirmed. Other merchants see it as "the reporter says it was confirmed by…"; OpenTrust does not verify it.</li>
+        <li><span class="code">evidence_ref</span> is optional and private (up to 100 characters, sent with <span class="code">confirmed_by</span>): a complaint or ticket number we can ask you about if a report is questioned. It is never shown to other merchants.</li>
+        <li>Each merchant can share one report per number. If you withdraw yours (below) you can share it again.</li>
+        <li><strong>Share the number of the person who did it</strong>: the number they used to order, pay, call or message you. Never the number of someone who may be a victim, for example the real owner of an account that someone else misused.</li>
+      </ul>
+      <p class="mt-4 font-bold">Response <span class="code">201</span></p>
+      <div class="codeblock mt-2"><div class="codeblock-bar">response.json</div><pre><code><%= highlight_json({ id: 42, phone_last4: "3210", status: "recorded" }) %></code></pre></div>
+    </section>
+
+    <section id="share-many">
+      <h2 class="flex flex-wrap items-center gap-3 text-2xl font-bold"><%= method_badge("POST") %> <span class="code !text-base">/reports/batch</span></h2>
+      <p class="mt-2"><strong>Share up to 100 experiences at once.</strong> Free, like a single report. Each report is handled on its own: a bad row never stops the others, and the answer is always <span class="code">200</span> with one result per report, in the same order. Meant for loading history and for platforms that report in bulk.</p>
+      <div class="codeblock mt-4"><div class="codeblock-bar">curl</div><pre><code>curl -X POST https://opentrust.in/api/v1/reports/batch \
+  -H "Authorization: Bearer $OPENTRUST_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"reports": [
+        {"phone": "9876543210", "reason_code": "chargeback", "notes": "Card payment disputed on 2 orders", "incident_at": "2026-08-14"},
+        {"phone": "9812345678", "reason_code": "fake_order"}
+      ]}'</code></pre></div>
+      <p class="mt-4 font-bold">Response <span class="code">200</span></p>
+      <div class="codeblock mt-2"><div class="codeblock-bar">response.json</div><pre><code><%= highlight_json({ results: [{ index: 0, status: "recorded", id: 42, phone_last4: "3210" }, { index: 1, status: "duplicate", error: { code: "duplicate_report", message: "you have already reported this number" } }], summary: { recorded: 1, duplicate: 1, invalid: 0 } }) %></code></pre></div>
+      <ul class="mt-4 list-disc space-y-1 pl-5">
+        <li><span class="code">status</span> is <span class="code">recorded</span>, <span class="code">duplicate</span> (you already shared this number; treat as done) or <span class="code">invalid</span> (see <span class="code">error.code</span>; fix the row, don't retry it unchanged).</li>
+        <li>A request with no reports, more than 100, or something other than a list is refused with <span class="code">422 invalid_reports</span>.</li>
+        <li>It counts as one request toward the rate limit, so 100 reports a call is far quicker than 100 single calls.</li>
+      </ul>
+    </section>
+
+    <section id="withdraw">
+      <h2 class="flex flex-wrap items-center gap-3 text-2xl font-bold"><%= method_badge("DELETE") %> <span class="code !text-base">/reports</span></h2>
+      <p class="mt-2"><strong>Withdraw your own report for a number.</strong> Use it when you got it wrong or the situation was resolved. It stops appearing in other merchants' results straight away and is deleted after 90 days. You can only withdraw reports you shared yourself.</p>
+      <div class="codeblock mt-4"><div class="codeblock-bar">curl</div><pre><code>curl -X DELETE https://opentrust.in/api/v1/reports \
+  -H "Authorization: Bearer $OPENTRUST_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"phone": "9876543210"}'</code></pre></div>
+      <p class="mt-3">You can also send the number in the URL: <span class="code">DELETE /reports?phone=9876543210</span>.</p>
+      <p class="mt-4 font-bold">Response <span class="code">200</span></p>
+      <div class="codeblock mt-2"><div class="codeblock-bar">response.json</div><pre><code><%= highlight_json({ phone_last4: "3210", status: "withdrawn" }) %></code></pre></div>
+      <p class="mt-3">If you have no active report for that number you get <span class="code">404 report_not_found</span>, which you can treat as success when cleaning up.</p>
+    </section>
+
+    <section id="reasons">
+      <h2 class="flex flex-wrap items-center gap-3 text-2xl font-bold"><%= method_badge("GET") %> <span class="code !text-base">/reason_codes</span></h2>
+      <p class="mt-2"><strong>The reason codes.</strong> A code describes what your business observed, not a conclusion about the person. Codes never change meaning or disappear, and new ones are only added when merchants would act differently on them. Free to call: fetch the list instead of hard-coding it.</p>
+      <p class="mt-3 font-bold">Choosing a code</p>
+      <ul class="mt-1 list-disc space-y-1 pl-5">
+        <li><strong>Only what you saw yourself.</strong> A confirmed outcome, such as a dispute, a refusal or a call you received, is a report. A hunch, a risk score or "looks suspicious" is not.</li>
+        <li><strong>Report the person who did it.</strong> Use the number they used to order, pay, call or message you, never the number of someone who may be a victim.</li>
+        <li><strong>Pick the most specific code that fits</strong>, and use the most serious one if several apply. There is one report per number, so mention the rest in the note.</li>
+        <li><strong>Use <span class="code">other</span> last</strong>, with a note. If the same thing keeps showing up there, tell us and it may get its own code.</li>
+        <li>You can withdraw a report whenever your view changes.</li>
+      </ul>
+      <div class="mt-4 space-y-4">
+        <% ReasonCatalog.offered.group_by(&:group).each do |group, entries| %>
           <div><p class="text-sm font-bold text-ink-soft"><%= group %></p>
             <dl class="mt-1 divide-y divide-ink/10 rounded-lg border border-line bg-white text-sm">
-              <% codes.each do |c| %><div class="flex flex-wrap items-baseline justify-between gap-x-4 px-3 py-2"><dt><span class="code"><%= c %></span></dt><dd><%= FraudReport.label_for(c) %></dd></div><% end %>
+              <% entries.each do |e| %><div class="px-3 py-2.5"><dt><span class="code"><%= e.code %></span> <span class="font-bold"><%= e.label %></span></dt><dd class="mt-1 text-ink-soft"><%= e.description %></dd><dd class="mt-1"><span class="font-bold text-teal-deep">Use it when</span> <%= e.use_when %></dd><dd class="mt-1"><span class="font-bold text-amber">Not when</span> <%= e.not_when %></dd></div><% end %>
             </dl></div>
         <% end %>
       </div>
-      <p class="mt-4 font-bold">Response <span class="code">201</span></p>
-      <div class="codeblock mt-2"><div class="codeblock-bar">response.json</div><pre><code><%= highlight_json({ id: 42, phone_last4: "3210", status: "recorded" }) %></code></pre></div>
     </section>
 
     <section id="me">
@@ -148,7 +203,7 @@ result = JSON.parse(res.body)</code></pre>
       <p class="mt-2">Every error has the same shape:</p>
       <div class="codeblock mt-3"><div class="codeblock-bar">error.json</div><pre><code><%= highlight_json({ error: { code: "no_checks_remaining", message: "You have used all your checks. …" } }) %></code></pre></div>
       <div class="mt-4 overflow-x-auto rounded-lg border border-line bg-white"><table class="w-full text-left text-sm"><tbody class="divide-y divide-ink/10">
-        <% { 401 => ["invalid_api_key", "Missing or invalid API key"], 402 => ["no_checks_remaining", "No checks left. Write to us and we'll raise your limit"], 403 => ["merchant_not_approved", "Account isn't approved or is suspended"], 409 => ["duplicate_report", "You already shared this number"], 422 => ["invalid_phone / invalid_report", "Invalid number, reason code or note"], 429 => ["rate_limited", "Over 120 requests per minute"] }.each do |status, (code, msg)| %>
+        <% [[401, "invalid_api_key", "Missing or invalid API key"], [402, "no_checks_remaining", "No checks left. Write to us and we'll raise your limit"], [403, "merchant_not_approved", "Account isn't approved or is suspended"], [404, "report_not_found", "You have no active report for that number (withdrawing)"], [409, "duplicate_report", "You already shared this number"], [422, "invalid_phone / invalid_report / invalid_incident_at / invalid_reports", "Invalid number, reason code, note, date or list"], [429, "rate_limited", "Over 120 requests per minute"]].each do |status, code, msg| %>
           <tr><td class="whitespace-nowrap px-3 py-2"><span class="code"><%= status %></span></td><td class="px-3 py-2"><span class="code"><%= code %></span></td><td class="px-3 py-2"><%= msg %></td></tr>
         <% end %>
       </tbody></table></div>

@@ -1,0 +1,13 @@
+<% content_for :preheader, "Your code is #{@code}. It expires in #{@expires_in}." %>
+<% content_for :reason, "You're receiving this because this address was used to register on opentrust.in." %>
+<%= mail_h1 "Confirm your email" %>
+<%= mail_p do %>Enter this code on OpenTrust to finish creating your account.<% end %>
+<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin:8px 0 20px;">
+  <tr>
+    <td align="center" bgcolor="#EEEFE9" style="background-color:#EEEFE9; border:1px solid #D2D4C8; border-radius:10px; padding:20px 12px;">
+      <span class="otp" style="font-family:<%= MailerHelper::MONO %>; font-size:36px; font-weight:500; letter-spacing:10px; color:#151515; padding-left:10px;"><%= @code %></span>
+    </td>
+  </tr>
+</table>
+<%= mail_p do %>The code expires in <strong><%= @expires_in %></strong>. Don't share it with anyone: OpenTrust will never ask you for it.<% end %>
+<%= mail_p(muted: true) do %>If you didn't try to register, you can ignore this email. Nothing happens unless the code is used.<% end %>

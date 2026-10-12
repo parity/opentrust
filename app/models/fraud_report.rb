@@ -1,45 +1,41 @@
 class FraudReport < ApplicationRecord
-  # Grouped for display. The flat codes are the API contract.
-  REASON_GROUPS = {
-    "Orders and payments" => %w[cod_refusal fake_order return_abuse chargeback fake_payment_proof],
-    "Impersonation and phone calls" => %w[otp_fraud bank_impersonation merchant_impersonation phishing_link kyc_scam refund_scam],
-    "Other" => %w[identity_fraud other]
-  }.freeze
-  REASON_CODES = REASON_GROUPS.values.flatten.freeze
+  # The codes, labels and descriptions live in ReasonCatalog. These stay so views and specs keep working.
+  REASON_GROUPS = ReasonCatalog.groups.freeze
+  REASON_CODES = ReasonCatalog.codes.freeze
+  CONFIRMED_BY = %w[bank payment_gateway law_enforcement].freeze # self-declared by the reporter; OpenTrust does not verify it
+  STATUSES = %w[active removed withdrawn].freeze # removed = by an admin; withdrawn = by the merchant who filed it
 
-  # Labels describe what the merchant observed, not a conclusion about the person.
-  REASON_LABELS = {
-    "cod_refusal" => "Refused a cash-on-delivery order",
-    "fake_order" => "Placed an order that appeared fake",
-    "return_abuse" => "Repeated return or refund abuse",
-    "chargeback" => "Disputed a payment (chargeback)",
-    "fake_payment_proof" => "Shared payment proof that didn't check out",
-    "otp_fraud" => "Asked someone for an OTP",
-    "bank_impersonation" => "Posed as a bank or financial institution",
-    "merchant_impersonation" => "Posed as our business or support",
-    "phishing_link" => "Sent a suspicious payment or login link",
-    "kyc_scam" => "Posed as a KYC or verification agent",
-    "refund_scam" => "Made a suspicious refund request",
-    "identity_fraud" => "Used someone else's identity details",
-    "other" => "Other"
-  }.freeze
-
-  def self.label_for(code) = REASON_LABELS.fetch(code, code.to_s.humanize)
+  def self.label_for(code) = ReasonCatalog.label(code)
 
   belongs_to :merchant
   encrypts :phone_ciphertext
+  encrypts :evidence_ref # a private reference (a complaint or ticket number); only admins ever see it, never in lookups
 
   scope :active, -> { where(status: "active") }
 
   validates :phone_hash, :phone_ciphertext, :phone_last4, presence: true
   validates :reason_code, inclusion: { in: REASON_CODES }
-  validates :status, inclusion: { in: %w[active removed] }
+  validates :status, inclusion: { in: STATUSES }
   validates :notes, length: { maximum: 500 }
   validate :notes_contain_no_contact_details
+  validate :other_needs_a_note
+  validates :confirmed_by, inclusion: { in: CONFIRMED_BY, message: "must be one of #{CONFIRMED_BY.join(', ')}" }, allow_nil: true
+  validate :evidence_needs_confirmation
 
   PII_PATTERN = /(\S+@\S+\.\S+)|(https?:\/\/|www\.)|(\+?\d[\d\s\-]{8,}\d)/i
 
   private
+
+  def evidence_needs_confirmation
+    return if evidence_ref.blank?
+
+    errors.add(:evidence_ref, "can only be sent together with confirmed_by") if confirmed_by.blank?
+    errors.add(:evidence_ref, "is too long (100 characters at most)") if evidence_ref.to_s.length > 100
+  end
+
+  def other_needs_a_note
+    errors.add(:notes, "are required (at least 10 characters) when the reason is 'other'") if reason_code == "other" && notes.to_s.strip.length < 10
+  end
 
   def notes_contain_no_contact_details
     errors.add(:notes, "must not contain emails, links or phone numbers") if notes.present? && notes.match?(PII_PATTERN)

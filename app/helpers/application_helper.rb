@@ -28,7 +28,7 @@ module ApplicationHelper
   end
 
   def method_badge(verb)
-    tone = verb == "GET" ? "bg-teal/15 text-teal-deep" : "bg-blue/10 text-blue"
+    tone = { "GET" => "bg-teal/15 text-teal-deep", "DELETE" => "bg-amber/15 text-amber" }.fetch(verb, "bg-blue/10 text-blue")
     content_tag(:span, verb, class: "rounded px-2 py-0.5 text-xs font-bold #{tone} data")
   end
 end

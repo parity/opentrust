@@ -6,6 +6,8 @@ module Api
       rescue_from PhoneNormalizer::Invalid do |e| render_error(422, "invalid_phone", e.message) end
       rescue_from Checks::Ledger::Insufficient do render_error(402, "no_checks_remaining", "You have used all your checks. Write to #{OpenTrust::FEEDBACK_EMAIL} and we will raise your limit.") end
       rescue_from ReportService::Duplicate do |e| render_error(409, "duplicate_report", e.message) end
+      rescue_from ReportService::NotFound do |e| render_error(404, "report_not_found", e.message) end
+      rescue_from ReportService::InvalidIncidentDate do |e| render_error(422, "invalid_incident_at", e.message) end
       rescue_from ActiveRecord::RecordInvalid do |e| render_error(422, "invalid_report", e.record.errors.full_messages.to_sentence) end
       rescue_from ActionController::ParameterMissing do |e| render_error(422, "missing_param", e.message) end
 
