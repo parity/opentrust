@@ -112,3 +112,54 @@ test("network failures become ConnectionError", async () => {
 test("requires an api key", () => {
   assert.throws(() => new OpenTrust({ apiKey: "" }), TypeError);
 });
+
+// Hashing: the same test vectors the OpenTrust server is tested against.
+import { readFileSync } from "node:fs";
+import { normalizePhone, hashPhone, hashedLength, InvalidPhoneError } from "../src/index.js";
+const VECTORS = JSON.parse(readFileSync(new URL("../../phone-hash-vectors.json", import.meta.url), "utf8"));
+const capture = () => { const seen = {}; return [seen, async (url, init) => { seen.url = url; seen.body = JSON.parse(init.body ?? "{}"); return new Response(JSON.stringify({ report_count: 0, reports: [], results: [], id: 1, phone_last4: "3210", status: "withdrawn", match: true }), { status: 200, headers: { "Content-Type": "application/json" } }); }]; };
+const hashing = (fetch) => new OpenTrust({ apiKey: "ot_live_test", fetch, hashNumbers: true });
+
+test("every vector normalises and hashes the same way", () => {
+  for (const v of VECTORS.valid) {
+    assert.equal(normalizePhone(v.input), v.e164, `normalize ${JSON.stringify(v.input)}`);
+    assert.equal(hashPhone(v.input), v.sha256, `sha256 ${JSON.stringify(v.input)}`);
+    assert.equal(hashedLength(v.input), 13, `length ${JSON.stringify(v.input)}`);
+  }
+});
+
+test("everything else is refused before anything is sent", () => {
+  for (const i of VECTORS.invalid) assert.throws(() => normalizePhone(i), InvalidPhoneError, `accepted ${JSON.stringify(i)}`);
+});
+
+test("hashNumbers sends only the hash (and the last four digits with a report)", async () => {
+  const [seen, fetch] = capture();
+  const ot = hashing(fetch);
+  await ot.lookup("98765 43210");
+  assert.deepEqual(seen.body, { phone_sha256: VECTORS.valid[0].sha256, phone_length: 13 });
+  await ot.lookupMany(["9876543210", "7012345678"]);
+  assert.equal(seen.body.phone_sha256s.length, 2);
+  assert.equal(seen.body.phone_length, 13);
+  assert.equal("phones" in seen.body, false);
+  await ot.report({ phone: "9876543210", reasonCode: "chargeback" });
+  assert.deepEqual(seen.body, { phone_sha256: VECTORS.valid[0].sha256, phone_length: 13, phone_last4: "3210", reason_code: "chargeback" });
+  await ot.withdrawReport("9876543210");
+  assert.deepEqual(seen.body, { phone_sha256: VECTORS.valid[0].sha256, phone_length: 13 });
+});
+
+test("the plain client still sends the number, and a bad number never reaches the network", async () => {
+  const [seen, fetch] = capture();
+  await make(fetch).lookup("98765 43210");
+  assert.deepEqual(seen.body, { phone: "98765 43210" });
+  let called = false;
+  await assert.rejects(hashing(async () => { called = true; }).lookup("12345"), InvalidPhoneError);
+  assert.equal(called, false);
+});
+
+test("verifyHashing asks the server to compare", async () => {
+  const [seen, fetch] = capture();
+  const r = await hashing(fetch).verifyHashing("9876543210");
+  assert.match(seen.url, /\/phone_hash\/check$/);
+  assert.equal(seen.body.phone_sha256, VECTORS.valid[0].sha256);
+  assert.equal(r.match, true);
+});

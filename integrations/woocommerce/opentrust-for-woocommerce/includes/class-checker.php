@@ -27,7 +27,7 @@ class Checker {
 	 */
 	public function __construct( Client $client, array $options = array(), $cache_get = null, $cache_set = null ) {
 		$this->client    = $client;
-		$this->options   = array_merge( array( 'only_cod' => true, 'hold_on_report' => false ), $options );
+		$this->options   = array_merge( array( 'only_cod' => false, 'hold_on_report' => false ), $options );
 		$this->cache_get = $cache_get ? $cache_get : 'get_transient';
 		$this->cache_set = $cache_set ? $cache_set : 'set_transient';
 	}
@@ -77,7 +77,11 @@ class Checker {
 	public function apply( $order, array $result ) {
 		$count = isset( $result['report_count'] ) ? (int) $result['report_count'] : 0;
 		if ( $count < 1 ) {
-			return $this->record( $order, 'clean', 0, 'OpenTrust: no other merchant has noted anything about this number.' );
+			$note = 'OpenTrust: no other merchant has noted anything about this number.';
+			if ( ! empty( $result['own_report'] ) ) {
+				$note .= ' (You have shared an experience with it yourself.)';
+			}
+			return $this->record( $order, 'clean', 0, $note );
 		}
 
 		$status = $this->record( $order, 'reported', $count, self::build_note( $result ) );
@@ -97,8 +101,19 @@ class Checker {
 			if ( ! empty( $r['notes'] ) ) {
 				$line .= ': "' . self::clean( $r['notes'] ) . '"';
 			}
+			$when = array();
+			if ( ! empty( $r['incident_at'] ) ) {
+				$when[] = 'happened ' . self::clean( $r['incident_at'] );
+			}
 			if ( ! empty( $r['reported_at'] ) ) {
-				$line .= ' (' . self::clean( $r['reported_at'] ) . ')';
+				$when[] = 'reported ' . self::clean( $r['reported_at'] );
+			}
+			$sources = array( 'bank' => 'a bank', 'payment_gateway' => 'a payment gateway', 'law_enforcement' => 'law enforcement' );
+			if ( ! empty( $r['confirmed_by'] ) && isset( $sources[ $r['confirmed_by'] ] ) ) {
+				$when[] = 'the reporter says it was confirmed by ' . $sources[ $r['confirmed_by'] ];
+			}
+			if ( $when ) {
+				$line .= ' (' . implode( '; ', $when ) . ')';
 			}
 			$lines[] = $line;
 		}
@@ -114,7 +129,7 @@ class Checker {
 		}
 		// Timeouts, outages, rate limits: fail open, and leave the order unmarked so a manual check can still run.
 		if ( function_exists( 'wc_get_logger' ) ) {
-			wc_get_logger()->warning( 'OpenTrust check failed: ' . $e->getMessage(), array( 'source' => 'opentrust' ) );
+			wc_get_logger()->warning( 'OpenTrust check failed: ' . $e->text(), array( 'source' => 'opentrust' ) );
 		}
 		return 'error';
 	}
@@ -137,7 +152,7 @@ class Checker {
 	}
 
 	private static function clean( $text ) {
-		$text = function_exists( 'wp_strip_all_tags' ) ? wp_strip_all_tags( (string) $text ) : strip_tags( (string) $text );
+		$text = wp_strip_all_tags( (string) $text );
 		return trim( $text );
 	}
 }

@@ -59,7 +59,7 @@
     "prettier": "^3.6.2",
     "typescript": "^5.9.3",
     "vite": "^7.3.1",
-    "vitest": "^3.2.7"
+    "vitest": "^5.0.4"
   },
   "workspaces": {
     "packages": [
@@ -71,7 +71,8 @@
   ],
   "overrides": {
     "p-map": "^4.0.0",
-    "qs": "^6.16.0"
+    "qs": "^6.16.0",
+    "deepmerge-ts": "^8.0.2"
   },
   "resolutions": {
     "qs": "^6.16.0"

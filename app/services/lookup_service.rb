@@ -5,8 +5,9 @@ class LookupService
   #
   # `reports` and `report_count` only ever hold OTHER merchants' reports: a merchant's own report is not a signal from anyone
   # else. `own_report` says whether the asking merchant has filed one itself.
-  def self.call(merchant, raw_phones)
-    phones = Array(raw_phones).map { |p| PhoneNormalizer.call(p) }
+  # Each entry is a number (String) or a Hash with `phone` or `phone_sha256` (see PhoneNormalizer.resolve).
+  def self.call(merchant, items)
+    phones = Array(items).map { |p| PhoneNormalizer.resolve(p) }
     Checks::Ledger.apply!(merchant, -phones.size, reason: "lookup", memo: "#{phones.size} check(s)")
     matching = FraudReport.active.where(phone_hash: phones.map { |p| p[:hash] })
     others = matching.where.not(merchant_id: merchant.id).group_by(&:phone_hash)
@@ -14,8 +15,10 @@ class LookupService
     phones.map do |p|
       list = others.fetch(p[:hash], [])
       # Reporter identity is deliberately never returned; admins can see it for moderation.
-      { phone_last4: p[:last4], reported: list.any?, report_count: list.size, own_report: own.include?(p[:hash]),
-        reports: list.sort_by(&:created_at).reverse.map { |r| present(r) } }
+      result = { phone_last4: p[:last4], reported: list.any?, report_count: list.size, own_report: own.include?(p[:hash]),
+                 reports: list.sort_by(&:created_at).reverse.map { |r| present(r) } }
+      result[:phone_sha256] = p[:sha256] if p[:e164].nil? # a hashed lookup: echo it so the caller can match results to inputs
+      result
     end
   end
 

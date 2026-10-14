@@ -157,12 +157,12 @@ A separate App Platform app, built from `integrations/shopify/app` with its own 
 
 1. In the **Shopify Partner Dashboard**, create the app ("Create app" → "Create app manually" or via `shopify app init` / `shopify app config link` from `integrations/shopify/app`). Note the **Client ID** and **Client secret**.
 2. Generate `ENCRYPTION_KEY` (`openssl rand -hex 32`) and save it with the other secrets.
-3. Copy the spec to `app.local.yaml` (same folder), fill in the repo, `SHOPIFY_API_KEY` (Client ID), `SHOPIFY_API_SECRET`, `ENCRYPTION_KEY`, and set `SHOPIFY_APP_URL` to the domain you'll use (default `https://shopify.opentrust.in`):
+3. Copy the spec to `app.local.yaml` (same folder), fill in the repo, `SHOPIFY_API_KEY` (Client ID), `SHOPIFY_API_SECRET`, `ENCRYPTION_KEY`, and set `SHOPIFY_APP_URL` to the domain you'll use (default `https://stores.opentrust.in`):
    ```sh
    cp integrations/shopify/app/.do/app.yaml integrations/shopify/app/.do/app.local.yaml
    doctl apps create --spec integrations/shopify/app/.do/app.local.yaml
    ```
-4. Add the domain `shopify.opentrust.in` (section 5).
+4. Add the domain `stores.opentrust.in` (section 5).
 5. Push the app's configuration (scopes, webhook URLs, app URL) to Shopify from `integrations/shopify/app`: set the `application_url` and redirect URLs to your domain, then `npm run deploy` (`shopify app deploy`).
 6. Apply for **protected customer data access** in the Partner Dashboard. Without it the order webhook omits the phone number and the app can't work. See `integrations/shopify/app/README.md` for the full pre-submission checklist.
 7. Install on a development store, paste an OpenTrust API key on the settings page, place a cash-on-delivery test order for a number someone has reported, and confirm the order gets the `opentrust-reported` tag and a note.

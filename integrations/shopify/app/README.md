@@ -60,3 +60,7 @@ DigitalOcean App Platform: see [`docs/DEPLOYMENT.md`](../../../docs/DEPLOYMENT.m
 - **COD detection.** Shopify has no COD flag; we match the payment method's name (`COD`, `Cash on Delivery`, `cash_on_delivery`). Stores that name it differently can turn off "only COD".
 - **Listing text** should repeat that reports are unverified observations, and that only the phone number is shared with OpenTrust.
 - Shopify's review also checks the embedded admin experience, scopes and the app's privacy policy URL (use `https://opentrust.in/privacy`).
+
+## Dependency audit notes
+
+`package.json` has an `overrides` entry for `deepmerge-ts` (8.x). Prisma's command-line tools depend on 7.x, which has a stack-exhaustion advisory, and no Prisma release has moved off it yet. The override was tested with `prisma generate`, `prisma migrate deploy` on a fresh database, the test suite and the production Docker build. Remove it once Prisma ships a version that uses 8.x. `npm audit --omit=dev` should report 0; the remaining findings are in development tooling (linting and code generation) that is not part of the production image.

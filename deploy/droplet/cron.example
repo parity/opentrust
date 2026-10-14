@@ -6,4 +6,4 @@ SHELL=/bin/bash
 15 */6 * * * $HOME/opentrust/deploy/droplet/backup.sh >> $HOME/backups/backup.log 2>&1
 
 # Delete expired reports and old audit logs, as the Privacy Policy promises (02:30 server time)
-30 2 * * * cd $HOME/opentrust/deploy/droplet && . ./lib.sh && dc exec -T web ./bin/rails opentrust:purge_expired >> $HOME/backups/purge.log 2>&1
+30 2 * * * $HOME/opentrust/deploy/droplet/purge.sh >> $HOME/backups/purge.log 2>&1

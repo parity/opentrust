@@ -3,7 +3,7 @@
 <div class="doc grid gap-10 lg:grid-cols-[200px_minmax(0,1fr)]">
   <aside class="hidden lg:block"><nav class="docnav sticky top-24 space-y-0.5" aria-label="On this page">
     <p class="px-2 pb-1 text-xs font-bold uppercase tracking-wide text-ink-soft">Guide</p>
-    <a href="#libraries">Libraries</a><a href="#auth">Authentication</a><a href="#lookup">Check a number</a><a href="#batch">Check many</a><a href="#share">Share an experience</a><a href="#share-many">Share many</a><a href="#withdraw">Withdraw a report</a><a href="#reasons">Reason codes</a><a href="#me">Your checks</a><a href="#errors">Errors</a><a href="#responsibly">Using results</a>
+    <a href="#libraries">Libraries</a><a href="#auth">Authentication</a><a href="#hashing">Send a hash</a><a href="#lookup">Check a number</a><a href="#batch">Check many</a><a href="#share">Share an experience</a><a href="#share-many">Share many</a><a href="#withdraw">Withdraw a report</a><a href="#reasons">Reason codes</a><a href="#me">Your checks</a><a href="#errors">Errors</a><a href="#responsibly">Using results</a>
   </nav></aside>
 
   <div class="min-w-0 max-w-3xl space-y-12">
@@ -35,6 +35,37 @@ const ot = new OpenTrust();
       <h2 class="text-2xl font-bold">Authentication</h2>
       <p class="mt-2">Send your key as a bearer token on every request. Keep it secret and revoke it from the dashboard if it leaks. Requests are limited to 120 per minute per key.</p>
       <div class="codeblock mt-4"><div class="codeblock-bar">header</div><pre><code>Authorization: Bearer ot_live_xxxxxxxxxxxxxxxxxxxxxxxx</code></pre></div>
+    </section>
+
+    <section id="hashing">
+      <h2 class="text-2xl font-bold">Send a hash instead of a number</h2>
+      <p class="mt-2">You don't have to send us customers' phone numbers. Wherever an endpoint takes <span class="code">phone</span>, it also takes <span class="code">phone_sha256</span>: the SHA-256 of the number. We match on it without receiving the number, and a number and its hash find each other.</p>
+      <p class="mt-3"><strong>The format has to be exact.</strong> A hash that was computed from a differently written number simply finds nothing, which looks like a clean customer. So:</p>
+      <ol class="mt-2 list-decimal space-y-1 pl-5">
+        <li>Keep the digits. Drop a leading <span class="code">91</span> (12 digits) or <span class="code">0</span> (11 digits). What is left must be 10 digits starting with 6, 7, 8 or 9.</li>
+        <li>Put <span class="code">+91</span> in front: <span class="code">+919876543210</span>.</li>
+        <li>SHA-256 of that text, as 64 <strong>lowercase</strong> hex characters.</li>
+        <li>Send <span class="code">phone_length</span> with it: the length of the text you hashed. It is always <span class="code">13</span> (<span class="code">+91</span> and ten digits).</li>
+      </ol>
+      <p class="mt-3"><strong>Why the length?</strong> It is a guard against the quiet mistake. A hash of <span class="code">9876543210</span> (10), <span class="code">09876543210</span> (11) or <span class="code">919876543210</span> (12) looks fine but never matches anything. If you send any other length we refuse the request with a message that says what probably went wrong, and it costs no check. Compute it from the text you actually hashed (<span class="code">len(number)</span>); copying a constant defeats the point.
+      <div class="codeblock mt-4"><div class="codeblock-bar">test vector</div><pre><code>+919876543210  →  f3a47ce5ce3d4ca8ad15225a245b2759022f79489f5c62719b8c9490f7aab90e
+
+# check it yourself
+printf '%s' '+919876543210' | shasum -a 256</code></pre></div>
+      <p class="mt-3">The libraries do all of this for you: <span class="code">OpenTrust::Client.new(hash_numbers: true)</span> in Ruby, <span class="code">new OpenTrust({ hashNumbers: true })</span> in Node. Both also export the hashing helper, and both are tested against the same <a href="https://github.com/parity/opentrust/blob/main/sdks/phone-hash-vectors.json" class="text-blue underline">test vectors</a> as this server.</p>
+      <ul class="mt-3 list-disc space-y-1 pl-5">
+        <li><strong>Check a number:</strong> <span class="code">{ "phone_sha256": "…", "phone_length": 13 }</span>. The result has <span class="code">phone_sha256</span> instead of <span class="code">phone_last4</span>, since we never saw the number.</li>
+        <li><strong>Check many:</strong> <span class="code">{ "phone_sha256s": ["…", "…"], "phone_length": 13 }</span> instead of <span class="code">phones</span>, with one <span class="code">phone_length</span> for the whole list. Results come back in order.</li>
+        <li><strong>Share an experience:</strong> <span class="code">phone_sha256</span> with <span class="code">phone_length</span> and <span class="code">phone_last4</span> (the last four digits, for display). We then hold the hash and the last four digits only. The same fields work in a batch.</li>
+        <li><strong>Withdraw:</strong> <span class="code">phone_sha256</span> and <span class="code">phone_length</span>.</li>
+        <li>Send <span class="code">phone</span> or <span class="code">phone_sha256</span>, never both.</li>
+      </ul>
+      <p class="mt-3"><strong>Test your hashing.</strong> <span class="code">POST /phone_hash/check</span> with a <em>test</em> number and your hash returns what we compute and whether yours matches. It costs no checks. It takes the number, so never use it with a customer's.</p>
+      <div class="codeblock mt-2"><div class="codeblock-bar">request</div><pre><code>curl https://opentrust.in/api/v1/phone_hash/check \
+  -H "Authorization: Bearer $OPENTRUST_API_KEY" \
+  -d phone="98765 43210" \
+  -d phone_sha256=f3a47ce5ce3d4ca8ad15225a245b2759022f79489f5c62719b8c9490f7aab90e</code></pre></div>
+      <p class="mt-3 text-sm text-ink-soft"><strong>What a hash does and doesn't do.</strong> There are only about four billion Indian mobile numbers, so anyone willing to try them all can reverse a plain hash, including us. Sending hashes limits what is transmitted and stored (and what could leak from a log or a database); it does not make a number anonymous, and we treat a hash as personal data.</p>
     </section>
 
     <section id="lookup">
@@ -91,15 +122,108 @@ req.body = { phone: &quot;9876543210&quot; }.to_json
 res = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) { |h| h.request(req) }
 result = JSON.parse(res.body)</code></pre>
       </div>
+      <p class="mt-6"><strong>Or send a hash, so we never receive the number.</strong> The number is hashed on your side and we match on the hash (<a href="#hashing" class="text-blue underline">how, and what a hash does and doesn't do</a>). The format is exact, so you also send <span class="code">phone_length</span>, the length of the text you hashed, which is always <span class="code">13</span>. The libraries do all of it for you, and the other examples spell it out.</p>
+      <div class="codeblock mt-2" data-controller="tabs">
+        <div class="codeblock-bar" role="tablist"><button type="button" role="tab" class="codetab" data-tabs-target="tab" data-action="tabs#pick">curl</button><% if OpenTrust::SDKS_PUBLISHED %><button type="button" role="tab" class="codetab" data-tabs-target="tab" data-action="tabs#pick">Ruby gem</button><button type="button" role="tab" class="codetab" data-tabs-target="tab" data-action="tabs#pick">Node package</button><% end %><button type="button" role="tab" class="codetab" data-tabs-target="tab" data-action="tabs#pick">Node (fetch)</button><button type="button" role="tab" class="codetab" data-tabs-target="tab" data-action="tabs#pick">Python</button><button type="button" role="tab" class="codetab" data-tabs-target="tab" data-action="tabs#pick">PHP</button><button type="button" role="tab" class="codetab" data-tabs-target="tab" data-action="tabs#pick">Ruby (net/http)</button></div>
+        <pre data-tabs-target="panel"><code># phone_sha256 is the SHA-256 of &quot;+91&quot; and the ten digits, as lowercase hex
+NUMBER='+919876543210'
+HASH=$(printf '%s' &quot;$NUMBER&quot; | shasum -a 256 | cut -d' ' -f1)
+curl -X POST https://opentrust.in/api/v1/lookups \
+  -H &quot;Authorization: Bearer $OPENTRUST_KEY&quot; \
+  -d phone_sha256=$HASH \
+  -d phone_length=${#NUMBER}   # 13: the length of the text you hashed</code></pre><% if OpenTrust::SDKS_PUBLISHED %><pre data-tabs-target="panel"><code>client = OpenTrust::Client.new(hash_numbers: true)
+result = client.lookup(&quot;98765 43210&quot;) # sends only the hash and its length, never the number</code></pre><pre data-tabs-target="panel"><code>const ot = new OpenTrust({ hashNumbers: true });
+const result = await ot.lookup(&quot;98765 43210&quot;); // sends only the hash and its length, never the number</code></pre><% end %><pre data-tabs-target="panel"><code>import { createHash } from &quot;node:crypto&quot;;
+
+function normalize(raw) {
+  let d = String(raw).replace(/\D/g, &quot;&quot;);
+  if (d.length === 12 &amp;&amp; d.startsWith(&quot;91&quot;)) d = d.slice(2);
+  if (d.length === 11 &amp;&amp; d.startsWith(&quot;0&quot;)) d = d.slice(1);
+  if (!/^[6-9]\d{9}$/.test(d)) throw new Error(&quot;not an Indian mobile number&quot;);
+  return &quot;+91&quot; + d;
+}
+
+const number = normalize(&quot;98765 43210&quot;);   // &quot;+919876543210&quot;
+const res = await fetch(&quot;https://opentrust.in/api/v1/lookups&quot;, {
+  method: &quot;POST&quot;,
+  headers: {
+    Authorization: `Bearer ${process.env.OPENTRUST_KEY}`,
+    &quot;Content-Type&quot;: &quot;application/json&quot;,
+  },
+  body: JSON.stringify({
+    phone_sha256: createHash(&quot;sha256&quot;).update(number).digest(&quot;hex&quot;),
+    phone_length: number.length,   // 13: the length of the text you hashed
+  }),
+});
+const result = await res.json();</code></pre><pre data-tabs-target="panel"><code>import hashlib, os, re, requests
+
+def normalize(raw):
+    d = re.sub(r&quot;\D&quot;, &quot;&quot;, raw)
+    if len(d) == 12 and d.startswith(&quot;91&quot;): d = d[2:]
+    if len(d) == 11 and d.startswith(&quot;0&quot;): d = d[1:]
+    if not re.fullmatch(r&quot;[6-9]\d{9}&quot;, d): raise ValueError(&quot;not an Indian mobile number&quot;)
+    return &quot;+91&quot; + d
+
+number = normalize(&quot;98765 43210&quot;)   # &quot;+919876543210&quot;
+res = requests.post(
+    &quot;https://opentrust.in/api/v1/lookups&quot;,
+    headers={&quot;Authorization&quot;: f&quot;Bearer {os.environ['OPENTRUST_KEY']}&quot;},
+    json={
+        &quot;phone_sha256&quot;: hashlib.sha256(number.encode()).hexdigest(),
+        &quot;phone_length&quot;: len(number),   # 13: the length of the text you hashed
+    },
+)
+result = res.json()</code></pre><pre data-tabs-target="panel"><code>&lt;?php
+function normalize($raw) {
+    $d = preg_replace('/\D/', '', $raw);
+    if (strlen($d) === 12 &amp;&amp; strpos($d, '91') === 0) $d = substr($d, 2);
+    if (strlen($d) === 11 &amp;&amp; $d[0] === '0') $d = substr($d, 1);
+    if (!preg_match('/^[6-9]\d{9}$/', $d)) throw new InvalidArgumentException('not an Indian mobile number');
+    return '+91' . $d;
+}
+
+$number = normalize(&quot;98765 43210&quot;);   // &quot;+919876543210&quot;
+$ch = curl_init(&quot;https://opentrust.in/api/v1/lookups&quot;);
+curl_setopt_array($ch, [
+  CURLOPT_POST =&gt; true,
+  CURLOPT_HTTPHEADER =&gt; [&quot;Authorization: Bearer &quot; . getenv(&quot;OPENTRUST_KEY&quot;),
+                         &quot;Content-Type: application/json&quot;],
+  CURLOPT_POSTFIELDS =&gt; json_encode([
+    &quot;phone_sha256&quot; =&gt; hash(&quot;sha256&quot;, $number),
+    &quot;phone_length&quot; =&gt; strlen($number),   // 13: the length of the text you hashed
+  ]),
+  CURLOPT_RETURNTRANSFER =&gt; true,
+]);
+$result = json_decode(curl_exec($ch), true);</code></pre><pre data-tabs-target="panel"><code>require &quot;digest&quot;
+require &quot;net/http&quot;
+require &quot;json&quot;
+
+def normalize(raw)
+  d = raw.to_s.gsub(/\D/, &quot;&quot;)
+  d = d[2..-1] if d.length == 12 &amp;&amp; d.start_with?(&quot;91&quot;)
+  d = d[1..-1] if d.length == 11 &amp;&amp; d.start_with?(&quot;0&quot;)
+  raise ArgumentError, &quot;not an Indian mobile number&quot; unless d.match?(/\A[6-9]\d{9}\z/)
+  &quot;+91#{d}&quot;
+end
+
+number = normalize(&quot;98765 43210&quot;)   # &quot;+919876543210&quot;
+uri = URI(&quot;https://opentrust.in/api/v1/lookups&quot;)
+req = Net::HTTP::Post.new(uri, &quot;Authorization&quot; =&gt; &quot;Bearer #{ENV['OPENTRUST_KEY']}&quot;,
+                               &quot;Content-Type&quot; =&gt; &quot;application/json&quot;)
+req.body = { phone_sha256: Digest::SHA256.hexdigest(number),
+             phone_length: number.length }.to_json   # 13: the length of the text you hashed
+res = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) { |h| h.request(req) }
+result = JSON.parse(res.body)</code></pre>
+      </div>
       <p class="mt-6 font-bold">Response <span class="code">200</span></p>
       <div class="codeblock mt-2"><div class="codeblock-bar">response.json</div><pre><code><%= highlight_json({ phone_last4: "3210", reported: true, report_count: 1, own_report: false,
-        reports: [{ reason_code: "cod_refusal", reason: "Refused a cash-on-delivery order", notes: "Refused 3 COD orders", incident_at: "2026-09-28", confirmed_by: nil, reported_at: "2026-10-01", reporter_verified: true }],
+        reports: [{ reason_code: "chargeback", reason: "Disputed a payment (chargeback)", notes: "Disputed 3 card payments", incident_at: "2026-09-28", confirmed_by: nil, reported_at: "2026-10-01", reporter_verified: true }],
         notice: "Reports are unverified observations shared by individual merchants. …", checks_remaining: 99_999 }) %></code></pre></div>
       <ul class="mt-4 list-disc space-y-1 pl-5">
         <li><span class="code">reports: []</span> and <span class="code">report_count: 0</span> mean no merchant has reported the number.</li>
         <li><span class="code">report_count</span> and <span class="code">reports</span> only hold reports from <em>other</em> merchants. <span class="code">own_report</span> tells you whether you have shared this number yourself, so your own report is never counted as a signal from someone else.</li>
         <li><span class="code">incident_at</span> is the date the merchant says it happened (or <span class="code">null</span>); <span class="code">reported_at</span> is the day it was shared. Recent incidents usually matter more than old ones.</li>
-        <li>You never get the full number back, only <span class="code">phone_last4</span>, and never who reported.</li>
+        <li>You never get the full number back, only <span class="code">phone_last4</span>, and never who reported. If you sent a hash, <span class="code">phone_sha256</span> comes back instead of <span class="code">phone_last4</span>, since we never saw the number.</li>
         <li><span class="code">notice</span> is included in every response. Please keep it in front of anyone who sees a result.</li>
       </ul>
     </section>
@@ -107,6 +231,7 @@ result = JSON.parse(res.body)</code></pre>
     <section id="batch">
       <h2 class="flex flex-wrap items-center gap-3 text-2xl font-bold"><%= method_badge("POST") %> <span class="code !text-base">/lookups/batch</span></h2>
       <p class="mt-2"><strong>Check up to 100 numbers.</strong> Uses one check per number, all or nothing: if you don't have enough checks, none are used and you get a <span class="code">402</span>.</p>
+      <p class="mt-2 text-sm text-ink-soft">Prefer not to send the numbers? Send <span class="code">phone_sha256s</span> (a list of SHA-256 hashes) and one <span class="code">phone_length</span> instead of <span class="code">phones</span>. See <a href="#hashing" class="text-blue underline">Send a hash</a>.</p>
       <div class="codeblock mt-4"><div class="codeblock-bar">curl</div><pre><code>curl -X POST https://opentrust.in/api/v1/lookups/batch \
   -H "Authorization: Bearer $OPENTRUST_KEY" \
   -H "Content-Type: application/json" \
@@ -119,12 +244,13 @@ result = JSON.parse(res.body)</code></pre>
     <section id="share">
       <h2 class="flex flex-wrap items-center gap-3 text-2xl font-bold"><%= method_badge("POST") %> <span class="code !text-base">/reports</span></h2>
       <p class="mt-2"><strong>Share an experience with a number.</strong> Optional, and it doesn't change your allowance. Only share what your own business directly experienced, as plain facts.</p>
+      <p class="mt-2 text-sm text-ink-soft">Prefer not to send the number? Send <span class="code">phone_sha256</span>, <span class="code">phone_length</span> and <span class="code">phone_last4</span> (the last four digits) instead of <span class="code">phone</span>. See <a href="#hashing" class="text-blue underline">Send a hash</a>.</p>
       <div class="codeblock mt-4"><div class="codeblock-bar">curl</div><pre><code>curl -X POST https://opentrust.in/api/v1/reports \
   -H "Authorization: Bearer $OPENTRUST_KEY" \
   -d phone=9876543210 \
-  -d reason_code=cod_refusal \
+  -d reason_code=chargeback \
   -d incident_at=2026-03-14 \
-  -d "notes=Refused 3 COD orders in March"</code></pre></div>
+  -d "notes=Disputed 3 card payments in March"</code></pre></div>
       <ul class="mt-4 list-disc space-y-1 pl-5">
         <li><span class="code">reason_code</span> is one of the <a href="#reasons" class="text-blue underline">reason codes</a> below.</li>
         <li><span class="code">notes</span> is optional, up to 500 characters, except for <span class="code">other</span>, which needs at least 10. No names, accusations, emails, links or phone numbers.</li>
@@ -141,6 +267,7 @@ result = JSON.parse(res.body)</code></pre>
     <section id="share-many">
       <h2 class="flex flex-wrap items-center gap-3 text-2xl font-bold"><%= method_badge("POST") %> <span class="code !text-base">/reports/batch</span></h2>
       <p class="mt-2"><strong>Share up to 100 experiences at once.</strong> Free, like a single report. Each report is handled on its own: a bad row never stops the others, and the answer is always <span class="code">200</span> with one result per report, in the same order. Meant for loading history and for platforms that report in bulk.</p>
+      <p class="mt-2 text-sm text-ink-soft">Each report may use <span class="code">phone_sha256</span>, <span class="code">phone_length</span> and <span class="code">phone_last4</span> instead of <span class="code">phone</span>. See <a href="#hashing" class="text-blue underline">Send a hash</a>.</p>
       <div class="codeblock mt-4"><div class="codeblock-bar">curl</div><pre><code>curl -X POST https://opentrust.in/api/v1/reports/batch \
   -H "Authorization: Bearer $OPENTRUST_KEY" \
   -H "Content-Type: application/json" \
@@ -160,6 +287,7 @@ result = JSON.parse(res.body)</code></pre>
     <section id="withdraw">
       <h2 class="flex flex-wrap items-center gap-3 text-2xl font-bold"><%= method_badge("DELETE") %> <span class="code !text-base">/reports</span></h2>
       <p class="mt-2"><strong>Withdraw your own report for a number.</strong> Use it when you got it wrong or the situation was resolved. It stops appearing in other merchants' results straight away and is deleted after 90 days. You can only withdraw reports you shared yourself.</p>
+      <p class="mt-2 text-sm text-ink-soft">You can send <span class="code">phone_sha256</span> and <span class="code">phone_length</span> instead of <span class="code">phone</span>.</p>
       <div class="codeblock mt-4"><div class="codeblock-bar">curl</div><pre><code>curl -X DELETE https://opentrust.in/api/v1/reports \
   -H "Authorization: Bearer $OPENTRUST_KEY" \
   -H "Content-Type: application/json" \

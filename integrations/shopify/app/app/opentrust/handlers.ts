@@ -39,7 +39,7 @@ export async function handleOrdersCreate(args: {
   } catch (e) {
     return { outcome: "error", reason: `could not read the stored API key: ${describeError(e)}` };
   }
-  return processOrder({ order: payload, settings: { onlyCod: row.onlyCod !== false }, client, graphql });
+  return processOrder({ order: payload, settings: { onlyCod: row.onlyCod === true }, client, graphql });
 }
 
 export type SaveResult =
@@ -55,7 +55,7 @@ export async function saveSettings(args: {
   createClient: CreateClient;
   encryptionKey: string;
 }): Promise<SaveResult> {
-  const { shop, onlyCod = true, store, createClient, encryptionKey } = args;
+  const { shop, onlyCod = false, store, createClient, encryptionKey } = args;
   const existing = await store.get(shop);
   let key = String(args.apiKey ?? "").trim();
 
@@ -96,8 +96,8 @@ export async function loadStatus(args: {
 }): Promise<Status> {
   const { shop, store, createClient, encryptionKey } = args;
   const row = await store.get(shop);
-  if (!row?.apiKeyEnc) return { configured: false, onlyCod: true };
-  const base: Status = { configured: true, onlyCod: row.onlyCod !== false };
+  if (!row?.apiKeyEnc) return { configured: false, onlyCod: false };
+  const base: Status = { configured: true, onlyCod: row.onlyCod === true };
   try {
     const me = await createClient(decryptSecret(row.apiKeyEnc, encryptionKey)).me();
     return { ...base, connected: true, merchant: me.merchant, checksRemaining: me.checksRemaining };

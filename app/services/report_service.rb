@@ -9,8 +9,9 @@ class ReportService
   ALREADY_REPORTED = "you have already reported this number".freeze
   ALREADY_REMOVED = "your report for this number was removed by OpenTrust and can't be filed again".freeze
 
-  def self.call(merchant, phone:, reason_code:, notes: nil, incident_at: nil, confirmed_by: nil, evidence_ref: nil)
-    p = PhoneNormalizer.call(phone)
+  # Send `phone` (a number) or `phone_sha256` with `phone_last4` (the SHA-256 of the number, and its last four digits for display).
+  def self.call(merchant, reason_code:, phone: nil, phone_sha256: nil, phone_last4: nil, phone_length: nil, notes: nil, incident_at: nil, confirmed_by: nil, evidence_ref: nil)
+    p = resolve(phone, phone_sha256, phone_last4, phone_length)
     incident = parse_incident_at(incident_at)
     existing = merchant.fraud_reports.find_by(phone_hash: p[:hash])
     return refile!(existing, p, reason_code, notes, incident, confirmed_by.presence, evidence_ref.presence) if existing
@@ -25,8 +26,8 @@ class ReportService
   end
 
   # The merchant takes back its own report. It stops appearing in lookups at once and is deleted after the removal period.
-  def self.withdraw(merchant, phone:)
-    p = PhoneNormalizer.call(phone)
+  def self.withdraw(merchant, phone: nil, phone_sha256: nil, phone_length: nil)
+    p = resolve(phone, phone_sha256, nil, phone_length, last4_required: false)
     report = merchant.fraud_reports.active.find_by(phone_hash: p[:hash]) or raise NotFound, "you have no active report for this number"
     report.update!(status: "withdrawn")
     report
@@ -38,7 +39,7 @@ class ReportService
       begin
         raise ActiveRecord::RecordInvalid, FraudReport.new unless item.respond_to?(:key?)
 
-        report = call(merchant, phone: item[:phone], reason_code: item[:reason_code], notes: item[:notes], incident_at: item[:incident_at],
+        report = call(merchant, phone: item[:phone], phone_sha256: item[:phone_sha256], phone_last4: item[:phone_last4], phone_length: item[:phone_length], reason_code: item[:reason_code], notes: item[:notes], incident_at: item[:incident_at],
                       confirmed_by: item[:confirmed_by], evidence_ref: item[:evidence_ref])
         { index: index, status: "recorded", id: report.id, phone_last4: report.phone_last4 }
       rescue Duplicate => e then failure(index, "duplicate", "duplicate_report", e.message)
@@ -56,10 +57,20 @@ class ReportService
     raise Duplicate, (existing.status == "removed" ? ALREADY_REMOVED : ALREADY_REPORTED) unless existing.status == "withdrawn"
 
     existing.update!(status: "active", reason_code: reason_code, notes: notes, incident_at: incident, confirmed_by: confirmed_by, evidence_ref: evidence_ref,
-                     phone_ciphertext: p[:e164], phone_last4: p[:last4])
+                     phone_ciphertext: p[:e164] || existing.phone_ciphertext, phone_last4: p[:last4] || existing.phone_last4)
     existing
   end
   private_class_method :refile!
+
+  # Filing a report with a hash needs the last four digits (they are what merchants and admins see); withdrawing does not.
+  def self.resolve(phone, phone_sha256, phone_last4, phone_length, last4_required: true)
+    p = PhoneNormalizer.resolve(phone: phone, phone_sha256: phone_sha256, phone_last4: phone_last4, phone_length: phone_length)
+    if last4_required && p[:e164].nil? && p[:last4].blank?
+      raise PhoneNormalizer::Invalid, "phone_last4 (the last four digits) is required together with phone_sha256"
+    end
+    p
+  end
+  private_class_method :resolve
 
   # A date ("2026-08-14") or a full ISO 8601 time. Blank is fine; anything else that isn't a real, past date is refused.
   def self.parse_incident_at(value)

@@ -1,6 +1,6 @@
 {
   "name": "opentrust",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Node.js client for the OpenTrust API: check mobile numbers against experiences shared by other Indian merchants.",
   "author": "ParityCube (https://www.paritycube.com)",
   "type": "module",

@@ -14,6 +14,14 @@ class ApiException extends \Exception {
 		$this->status     = (int) $status;
 		$this->error_code = (string) $error_code;
 	}
+
+	/**
+	 * The message as plain text, for the log or for escaping again on output. The message itself is stored HTML-escaped
+	 * (see the throw sites in Client), which is what the WordPress coding standards ask of exception messages.
+	 */
+	public function text() {
+		return wp_specialchars_decode( $this->getMessage(), ENT_QUOTES );
+	}
 }
 
 /**
@@ -44,12 +52,28 @@ class Client {
 		return $this->request( 'POST', '/lookups', array( 'phone' => $phone ) );
 	}
 
-	public function report( $phone, $reason_code, $notes = null ) {
+	/**
+	 * Share an experience. $incident_at is a date (YYYY-MM-DD); $confirmed_by is bank, payment_gateway or law_enforcement
+	 * (only when they told the merchant it was confirmed). Both are optional.
+	 */
+	public function report( $phone, $reason_code, $notes = null, $incident_at = null, $confirmed_by = null ) {
 		$payload = array( 'phone' => $phone, 'reason_code' => $reason_code );
 		if ( null !== $notes && '' !== $notes ) {
 			$payload['notes'] = $notes;
 		}
+		if ( ! empty( $incident_at ) ) {
+			$payload['incident_at'] = $incident_at;
+		}
+		if ( ! empty( $confirmed_by ) ) {
+			$payload['confirmed_by'] = $confirmed_by;
+		}
 		return $this->request( 'POST', '/reports', $payload );
+	}
+
+	/** The reason codes, with labels, groups and guidance. Empty when the response is not what we expect. */
+	public function reason_codes() {
+		$data = $this->request( 'GET', '/reason_codes' );
+		return isset( $data['reason_codes'] ) && is_array( $data['reason_codes'] ) ? $data['reason_codes'] : array();
 	}
 
 	public function me() {
@@ -80,9 +104,9 @@ class Client {
 		}
 		$err = isset( $data['error'] ) && is_array( $data['error'] ) ? $data['error'] : array();
 		throw new ApiException(
-			isset( $err['message'] ) ? $err['message'] : 'OpenTrust returned HTTP ' . $status,
-			$status,
-			isset( $err['code'] ) ? $err['code'] : ''
+			esc_html( isset( $err['message'] ) ? $err['message'] : 'OpenTrust returned HTTP ' . (int) $status ),
+			(int) $status,
+			esc_html( isset( $err['code'] ) ? $err['code'] : '' )
 		);
 	}
 
@@ -98,7 +122,7 @@ class Client {
 			)
 		);
 		if ( is_wp_error( $res ) ) {
-			throw new ApiException( $res->get_error_message(), 0, 'connection_error' );
+			throw new ApiException( esc_html( $res->get_error_message() ), 0, 'connection_error' );
 		}
 		return array( (int) wp_remote_retrieve_response_code( $res ), wp_remote_retrieve_body( $res ) );
 	}

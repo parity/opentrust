@@ -10,6 +10,9 @@ module OpenTrust
     end
   end
 
+  # Raised before anything is sent: the number is not an Indian mobile number, so it cannot be checked or hashed.
+  class InvalidPhoneError < ArgumentError; end
+
   class ConnectionError < Error; end        # network failure or timeout
   class AuthenticationError < Error; end    # 401: missing or invalid API key
   class NoChecksError < Error; end          # 402: allowance used up

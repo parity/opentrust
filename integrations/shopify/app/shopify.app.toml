@@ -1,8 +1,16 @@
 # Shopify app configuration for OpenTrust.
-# `shopify app config link` fills in client_id (and the URLs) from your Partner Dashboard app.
-client_id = ""
+# The client_id is public (it is not the secret). `shopify app config link` can refresh these values from the Partner Dashboard.
+client_id = "a1edad1d76a1314324b31cf55c0d71a5"
 name = "OpenTrust"
+application_url = "https://stores.opentrust.in"
 embedded = true
+
+[build]
+# `shopify app dev` points the app at a temporary tunnel to your laptop. Deploying (`shopify app deploy`) sets the URLs above again.
+automatically_update_urls_on_dev = true
+
+[auth]
+redirect_urls = ["https://stores.opentrust.in/auth/callback"]
 
 [access_scopes]
 # read_orders: receive new orders. write_orders: tag an order and add a note to it.

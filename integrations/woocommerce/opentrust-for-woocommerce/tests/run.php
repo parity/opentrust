@@ -1,4 +1,8 @@
 <?php
+// The plugin runs inside WordPress; these stand in for three WordPress functions so the tests can run on plain PHP.
+if ( ! function_exists( 'esc_html' ) ) { function esc_html( $t ) { return htmlspecialchars( (string) $t, ENT_QUOTES, 'UTF-8' ); } }
+if ( ! function_exists( 'wp_specialchars_decode' ) ) { function wp_specialchars_decode( $t, $q = ENT_QUOTES ) { return htmlspecialchars_decode( (string) $t, $q ); } }
+if ( ! function_exists( 'wp_strip_all_tags' ) ) { function wp_strip_all_tags( $t ) { return strip_tags( (string) $t ); } }
 // Dependency-free tests for the pure classes. Run: php tests/run.php
 define( 'ABSPATH', __DIR__ . '/' );
 require __DIR__ . '/../includes/class-client.php';
@@ -79,6 +83,13 @@ check( 'no phone skipped', ! $ck->should_check( new FakeOrder( '  ', 'cod' ) ) )
 $done = new FakeOrder(); $done->meta[ Checker::META_CHECKED ] = 'x';
 check( 'already checked skipped', ! $ck->should_check( $done ) );
 $all = new Checker( new Client( 'k', null, 3, transport( 200, $clean ) ), array( 'only_cod' => false ), $get, $set );
+$dflt = new Checker( new Client( 'k', null, 3, transport( 200, $clean ) ), array(), $get, $set );
+check( 'prepaid qualifies by default (only_cod is off unless the merchant turns it on)', $dflt->should_check( new FakeOrder( '9876543210', 'razorpay' ) ) );
+$odd = new Client( 'k', null, 3, transport( 422, array( 'error' => array( 'code' => 'x', 'message' => "Don't use <b>this</b> & that" ) ) ) );
+try { $odd->lookup( '9876543210' ); check( 'an API error is thrown', false ); } catch ( ApiException $e ) {
+	check( 'the exception message is stored escaped', false === strpos( $e->getMessage(), '<b>' ) );
+	check( 'text() gives back the plain message once, not double-escaped', "Don't use <b>this</b> & that" === $e->text() );
+}
 check( 'prepaid qualifies when only_cod off', $all->should_check( new FakeOrder( '9876543210', 'razorpay' ) ) );
 
 // Checker: reported -> note only (default).
@@ -132,7 +143,42 @@ $o  = new FakeOrder( '' , 'cod' );
 check( 'no phone is recorded as skipped', 'skipped' === ( new Checker( new Client( 'k', null, 3, transport( 200, $clean ) ), array(), $get, $set ) )->check_order( $o ) );
 
 // Reasons mirror the API.
-check( 'reasons include impersonation codes', isset( Reasons::all()['otp_fraud'], Reasons::all()['bank_impersonation'] ) && 13 === count( Reasons::all() ) );
+check( 'fallback reasons include impersonation codes', isset( Reasons::all()['otp_fraud'], Reasons::all()['bank_impersonation'] ) && 16 === count( Reasons::all() ) );
+check( 'fallback reasons include the newer codes', isset( Reasons::all()['promo_abuse'], Reasons::all()['document_mismatch'], Reasons::all()['third_party_payment_fraud'] ) );
+
+
+// Live reason list: the API's list wins, a malformed one falls back, and groups follow the live data.
+$live = array(
+	array( 'code' => 'cod_refusal', 'group' => 'Orders', 'label' => 'Refused COD', 'use_when' => 'u' ),
+	array( 'code' => 'brand_new_code', 'group' => 'Newer', 'label' => 'A code added after this plugin shipped' ),
+	array( 'code' => 'broken' ),
+	'not an entry',
+);
+check( 'live list replaces the shipped one', array( 'cod_refusal' => 'Refused COD', 'brand_new_code' => 'A code added after this plugin shipped' ) === Reasons::all( $live ) );
+check( 'live groups follow the API', array( 'Orders', 'Newer' ) === array_keys( Reasons::groups( $live ) ) );
+check( 'empty live list falls back', 16 === count( Reasons::all( array() ) ) && 16 === count( Reasons::all( null ) ) );
+check( 'a list with no valid entry falls back', 16 === count( Reasons::all( array( array( 'code' => 'x' ), 'y' ) ) ) );
+
+// Client: reason_codes and the optional report fields.
+$seen = null;
+$c    = new Client( 'ot_live_x', 'https://example.test/api/v1', 3, transport( 200, array( 'reason_codes' => $live ), $seen ) );
+check( 'reason_codes returns the list', 4 === count( $c->reason_codes() ) && 'GET' === $seen['method'] && 'https://example.test/api/v1/reason_codes' === $seen['url'] );
+$c = new Client( 'ot_live_x', 'https://example.test/api/v1', 3, transport( 200, array( 'nope' => 1 ), $seen ) );
+check( 'reason_codes is empty for an unexpected body', array() === $c->reason_codes() );
+$c = new Client( 'ot_live_x', 'https://example.test/api/v1', 3, transport( 201, array( 'id' => 1 ), $seen ) );
+$c->report( '9876543210', 'chargeback', 'Disputed on 2 orders', '2026-08-14', 'bank' );
+check( 'report sends incident_at and confirmed_by', array( 'phone' => '9876543210', 'reason_code' => 'chargeback', 'notes' => 'Disputed on 2 orders', 'incident_at' => '2026-08-14', 'confirmed_by' => 'bank' ) === json_decode( $seen['payload'], true ) );
+$c->report( '9876543210', 'chargeback' );
+check( 'report omits empty optional fields', array( 'phone' => '9876543210', 'reason_code' => 'chargeback' ) === json_decode( $seen['payload'], true ) );
+
+// Order note: dates, confirmation and own report.
+$note = Checker::build_note( array( 'report_count' => 1, 'reports' => array( array( 'reason' => 'Disputed a payment (chargeback)', 'notes' => 'Two orders', 'incident_at' => '2026-08-14', 'reported_at' => '2026-10-01', 'confirmed_by' => 'payment_gateway' ) ) ) );
+check( 'note shows incident date, report date and who confirmed', false !== strpos( $note, '(happened 2026-08-14; reported 2026-10-01; the reporter says it was confirmed by a payment gateway)' ) );
+$note = Checker::build_note( array( 'report_count' => 1, 'reports' => array( array( 'reason' => 'x', 'reported_at' => '2026-10-01', 'confirmed_by' => 'my cousin' ) ) ) );
+check( 'an unknown confirmed_by is not shown', false === strpos( $note, 'confirmed by' ) && false !== strpos( $note, '(reported 2026-10-01)' ) );
+$o = new FakeOrder();
+( new Checker( new Client( 'k', null, 3, transport( 200, array( 'phone_last4' => '3210', 'report_count' => 0, 'own_report' => true, 'reports' => array() ) ) ), array(), $get, $set ) )->check_order( $o );
+check( 'own report is mentioned when nobody else reported', false !== strpos( implode( ' ', $o->notes ), 'You have shared an experience with it yourself' ) );
 
 echo "\n$total checks, $failures failed\n";
 exit( $failures ? 1 : 0 );

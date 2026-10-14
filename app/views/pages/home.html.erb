@@ -2,8 +2,14 @@
   <h1 class="max-w-3xl text-4xl leading-[1.1] md:text-5xl">When one merchant gets burned, every merchant can <span class="hl-blue">learn from it</span>.</h1>
   <div class="mt-6 grid items-start gap-8 lg:grid-cols-[1.2fr_1fr]">
     <div class="space-y-4 text-lg text-ink-soft">
-      <p>OpenTrust is a free, shared notebook where Indian merchants note down <span class="hl">mobile numbers that caused them trouble</span>: refused COD orders, callers posing as a bank to ask for an OTP, and the like.</p>
-      <p>Before you ship an order, check whether another merchant has written something down. It's a community effort, and we're not trying to make money from it.</p>
+      <p>OpenTrust is a free, shared notebook where Indian merchants note down <span class="hl">mobile numbers that caused them trouble</span>: chargebacks and disputed payments, fake orders, callers posing as a bank to ask for an OTP, refused cash-on-delivery orders, and the like.</p>
+      <p>Before you fulfil an order, check whether another merchant has written something down. It's a community effort, and we're not trying to make money from it.</p>
+      <div class="rounded-md border-2 border-teal bg-white p-4 text-base text-ink">
+        <p class="text-xl font-extrabold">You don't have to share a single real phone number.</p>
+        <p class="mt-1 text-ink-soft">Hash the number on your side and send that instead: we match on the hash and <strong class="text-ink">never receive the number</strong>. One option in our Ruby and Node libraries, or a few lines in any language. <%= link_to "See how", docs_path(anchor: "hashing"), class: "text-blue underline" %></p>
+        <p class="mt-2 text-xs text-ink-soft">A hash limits what is sent and stored; it can in principle be reversed, so it does not make anyone anonymous.</p>
+      </div>
+    </div>
     </div>
     <div class="card">
       <p class="text-lg font-extrabold">Set up <span class="hl">for free</span></p>
@@ -63,8 +69,8 @@
   "reported": <span class="font-bold text-amber">true</span>,
   "report_count": 2,
   "reports": [{
-    "reason_code": "<span class="text-amber">cod_refusal</span>",
-    "notes": "Refused 3 COD orders",
+    "reason_code": "<span class="text-amber">chargeback</span>",
+    "notes": "Disputed 3 card payments",
     "reporter_verified": true
   }, …],
   "notice": "Unverified observations…"
@@ -97,7 +103,7 @@
   <div>
     <h2 class="text-3xl">Built to be <span class="hl">careful</span></h2>
     <dl class="mt-3 space-y-4">
-      <div><dt class="font-extrabold">You share only the number</dt><dd class="text-ink-soft">No customer names, addresses or order data ever reach us, because you never send them.</dd></div>
+      <div><dt class="font-extrabold">You share only the number, or just its hash</dt><dd class="text-ink-soft">No customer names, addresses or order data ever reach us, because you never send them. Prefer not to send even the number? Send its SHA-256 hash instead. (A hash limits what is sent and stored; it can in principle be reversed, so it does not make anyone anonymous.)</dd></div>
       <div><dt class="font-extrabold">Reporters stay anonymous</dt><dd class="text-ink-soft">Other merchants see what happened, the note and a "verified merchant" badge. Never a business name.</dd></div>
       <div><dt class="font-extrabold">Numbers are protected</dt><dd class="text-ink-soft">Matching uses a keyed hash and the stored copy is encrypted. Lookups return only the last 4 digits.</dd></div>
       <div><dt class="font-extrabold">Mistakes get fixed</dt><dd class="text-ink-soft">If something was noted in error, our <%= link_to "grievance process", privacy_path, class: "text-blue underline" %> exists to put it right.</dd></div>

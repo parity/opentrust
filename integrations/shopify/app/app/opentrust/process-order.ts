@@ -23,7 +23,7 @@ export async function processOrder(args: {
   graphql: GraphQL;
 }): Promise<Outcome> {
   const { order, settings = {}, client, graphql } = args;
-  const { onlyCod = true } = settings;
+  const { onlyCod = false } = settings;
 
   const phone = extractPhone(order);
   if (!phone || digitsOnly(phone).length < 10) return { outcome: "skipped", reason: "no usable phone number" };

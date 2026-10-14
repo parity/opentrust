@@ -7,9 +7,13 @@ components:
   schemas:
     ReportInput:
       type: object
-      required: [phone, reason_code]
+      required: [reason_code]
+      description: Send phone, or phone_sha256 together with phone_last4. Never both.
       properties:
         phone: { type: string }
+        phone_sha256: { type: string, pattern: "^[0-9a-f]{64}$", description: "SHA-256 of +91 followed by ten digits, e.g. +919876543210; 64 lowercase hex characters" }
+        phone_length: { type: integer, enum: [13], description: "Required with phone_sha256: the length of the text you hashed (+91 and ten digits = 13). Any other value is refused" }
+        phone_last4: { type: string, pattern: "^[0-9]{4}$", description: Required with phone_sha256; shown to merchants and admins }
         reason_code: { type: string, enum: [cod_refusal, fake_order, return_abuse, chargeback, fake_payment_proof, third_party_payment_fraud, identity_fraud, document_mismatch, promo_abuse, otp_fraud, bank_impersonation, merchant_impersonation, phishing_link, kyc_scam, refund_scam, other], description: See GET /reason_codes. 'other' needs a note of at least 10 characters. }
         notes: { type: string, maxLength: 500 }
         incident_at: { type: string, description: ISO 8601 date or time, not in the future }
@@ -19,7 +23,8 @@ components:
     LookupResult:
       type: object
       properties:
-        phone_last4: { type: string }
+        phone_last4: { type: string, nullable: true, description: Empty when the number was sent as a hash }
+        phone_sha256: { type: string, nullable: true, description: Echoed when the number was sent as a hash }
         reported: { type: boolean }
         report_count: { type: integer, description: Reports from other merchants only }
         own_report: { type: boolean, description: Whether you have shared this number yourself }
@@ -32,12 +37,12 @@ paths:
   /lookups:
     post:
       summary: Check one number (uses 1 check)
-      requestBody: { content: { application/json: { schema: { type: object, required: [phone], properties: { phone: { type: string } } } } } }
+      requestBody: { content: { application/json: { schema: { type: object, description: Send phone or phone_sha256, not both, properties: { phone: { type: string }, phone_sha256: { type: string, pattern: "^[0-9a-f]{64}$" }, phone_length: { type: integer, enum: [13], description: Required with phone_sha256 } } } } } }
       responses: { "200": { description: OK }, "401": { description: Bad key }, "402": { description: No checks left }, "422": { description: Invalid number } }
   /lookups/batch:
     post:
       summary: Check up to 100 numbers (1 check each, all or nothing)
-      requestBody: { content: { application/json: { schema: { type: object, required: [phones], properties: { phones: { type: array, maxItems: 100, items: { type: string } } } } } } }
+      requestBody: { content: { application/json: { schema: { type: object, description: Send phones or phone_sha256s, not both, properties: { phones: { type: array, maxItems: 100, items: { type: string } }, phone_sha256s: { type: array, maxItems: 100, items: { type: string, pattern: "^[0-9a-f]{64}$" } }, phone_length: { type: integer, enum: [13], description: One value for the whole list; required with phone_sha256s } } } } } }
       responses: { "200": { description: OK }, "402": { description: No checks left } }
   /reports:
     post:
@@ -47,13 +52,18 @@ paths:
     delete:
       summary: Withdraw your own report for a number
       parameters: [{ name: phone, in: query, schema: { type: string }, description: Or send it in a JSON body }]
-      requestBody: { content: { application/json: { schema: { type: object, properties: { phone: { type: string } } } } } }
+      requestBody: { content: { application/json: { schema: { type: object, properties: { phone: { type: string }, phone_sha256: { type: string, pattern: "^[0-9a-f]{64}$" }, phone_length: { type: integer, enum: [13] } } } } } }
       responses: { "200": { description: Withdrawn }, "404": { description: No active report for that number } }
   /reports/batch:
     post:
       summary: Share up to 100 experiences at once. One result per report; a bad row never stops the rest
       requestBody: { content: { application/json: { schema: { type: object, required: [reports], properties: { reports: { type: array, minItems: 1, maxItems: 100, items: { $ref: "#/components/schemas/ReportInput" } } } } } } }
       responses: { "200": { description: "results[] with status recorded, duplicate or invalid, plus a summary" }, "422": { description: Not a list of 1-100 reports } }
+  /phone_hash/check:
+    post:
+      summary: Development aid. Returns the SHA-256 we compute for a TEST number and whether yours matches. Costs no checks. Takes the number, so never use it with a customer's
+      requestBody: { content: { application/json: { schema: { type: object, required: [phone], properties: { phone: { type: string }, phone_sha256: { type: string } } } } } }
+      responses: { "200": { description: "{ phone, phone_sha256, match }" }, "422": { description: Invalid number } }
   /reason_codes:
     get: { summary: The reason codes with labels and descriptions, responses: { "200": { description: OK } } }
   /me:

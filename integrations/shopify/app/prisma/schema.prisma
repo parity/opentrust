@@ -40,7 +40,7 @@ model Session {
 model OpenTrustSettings {
   shop      String   @id
   apiKeyEnc String
-  onlyCod   Boolean  @default(true)
+  onlyCod   Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

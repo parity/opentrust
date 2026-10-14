@@ -2,7 +2,7 @@
 
 # OpenTrust
 
-A free, community-run way for Indian merchants to share experiences with problem mobile numbers (refused COD orders, callers posing as a bank to get an OTP, and the like) and to check new customers before they ship. Live at [opentrust.in](https://opentrust.in).
+A free, community-run way for Indian merchants to share experiences with problem mobile numbers (chargebacks and disputed payments, fake orders, callers posing as a bank to get an OTP, refused COD orders, and the like) and to check new customers before they fulfil an order. Live at [opentrust.in](https://opentrust.in).
 
 Sponsored and maintained by [ParityCube](https://www.paritycube.com/). Built proudly in India, for India.
 

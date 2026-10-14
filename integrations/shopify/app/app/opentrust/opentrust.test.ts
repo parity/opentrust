@@ -59,6 +59,22 @@ describe("order helpers", () => {
     expect(n).not.toContain("<b>");
     expect(n).toMatch(/unverified observations/);
   });
+
+  it("buildNote shows the incident date and who the reporter says confirmed it, and ignores unknown sources", () => {
+    const n = buildNote({ reportCount: 1, reports: [{ reasonCode: "chargeback", reason: "Disputed a payment (chargeback)", notes: "Two orders", incidentAt: "2026-08-14", reportedAt: "2026-10-01", confirmedBy: "payment_gateway" }] });
+    expect(n).toContain("(happened 2026-08-14; reported 2026-10-01; the reporter says it was confirmed by a payment gateway).");
+    expect(n.split("\n").filter((l) => l.startsWith("•")).every((l) => l.endsWith("."))).toBe(true);
+    const m = buildNote({ reportCount: 1, reports: [{ reasonCode: "x", reportedAt: "2026-10-01", confirmedBy: "my cousin" }] });
+    expect(m).toContain("(reported 2026-10-01).");
+    expect(m).not.toContain("confirmed by");
+  });
+
+  it("the client maps incident date, confirmation and own_report from a lookup", async () => {
+    const fetchFn = async () => new Response(JSON.stringify({ report_count: 1, own_report: true, reports: [{ reason_code: "chargeback", incident_at: "2026-08-14", confirmed_by: "bank", reported_at: "2026-10-01" }] }), { status: 200 });
+    const r = await createClient("k", { fetch: fetchFn as any }).lookup("9876543210");
+    expect(r.ownReport).toBe(true);
+    expect(r.reports[0]).toMatchObject({ incidentAt: "2026-08-14", confirmedBy: "bank" });
+  });
 });
 
 describe("processOrder", () => {
@@ -75,6 +91,13 @@ describe("processOrder", () => {
     const graphql = fakeGraphql();
     expect((await processOrder({ order: codOrder(), client: lookupClient(clean), graphql })).outcome).toBe("clean");
     expect(graphql.calls).toHaveLength(0);
+  });
+  it("checks prepaid orders by default, and skips them only when the merchant turns on cash-on-delivery only", async () => {
+    const prepaid = codOrder({ payment_gateway_names: ["razorpay"] });
+    const byDefault = await processOrder({ order: prepaid, client: lookupClient(clean), graphql: fakeGraphql() });
+    expect(byDefault.outcome).toBe("clean");
+    const optedIn = await processOrder({ order: prepaid, settings: { onlyCod: true }, client: lookupClient(clean), graphql: fakeGraphql() });
+    expect(optedIn.outcome).toBe("skipped");
   });
   it("skips non-COD orders and orders with no phone without spending a check", async () => {
     const client = lookupClient(reported);
@@ -170,7 +193,7 @@ describe("settings and webhook handlers", () => {
   });
   it("loadStatus never exposes the key and shows connection state", async () => {
     const { store } = memoryStore();
-    expect(await loadStatus({ shop: "a", store, createClient: () => lookupClient(clean), encryptionKey: KEY })).toEqual({ configured: false, onlyCod: true });
+    expect(await loadStatus({ shop: "a", store, createClient: () => lookupClient(clean), encryptionKey: KEY })).toEqual({ configured: false, onlyCod: false });
     await saveSettings({ shop: "a", apiKey: "ot_live_a", onlyCod: false, store, createClient: () => lookupClient(clean), encryptionKey: KEY });
     const ok = await loadStatus({ shop: "a", store, createClient: () => lookupClient(clean), encryptionKey: KEY });
     expect(ok).toEqual({ configured: true, onlyCod: false, connected: true, merchant: "Demo Shop", checksRemaining: 99 });

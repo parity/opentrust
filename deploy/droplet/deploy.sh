@@ -61,6 +61,7 @@ main() {
   log "building ${build_services[*]} (the first build takes several minutes)"
   if ! dc "${flags[@]}" build "${build_services[@]}"; then
     cp images.env.prev images.env
+    notify "❌ Deploy of $current failed to BUILD. Nothing changed: the previous version is still running."
     echo "Build failed. Nothing was changed: the previous version is still running." >&2
     exit 1
   fi
@@ -86,6 +87,7 @@ main() {
       # shellcheck disable=SC2086
       $DOCKER images "$repo" --format '{{.Tag}}' | tail -n +4 | while read -r tag; do $DOCKER rmi "$repo:$tag" > /dev/null 2>&1 || true; done
     done
+    notify "✅ Deployed $current (was $previous_sha). To roll back: deploy.sh $previous_sha"
     if [ "$previous_sha" != "$current" ]; then
       log "Deployed $current. To roll back: $KIT_DIR/deploy.sh $previous_sha"
     else
@@ -94,6 +96,7 @@ main() {
     return 0
   fi
 
+  notify "❌ Deploy of $current did NOT become healthy; rolling back to $previous_sha (check the server logs)."
   log "web did NOT become healthy; last log lines:"
   dc logs --tail 40 web || true
   if [ -s images.env.prev ]; then

@@ -30,7 +30,7 @@ services:
         value: ${shopify-db.DATABASE_URL}
         scope: RUN_TIME
       - key: SHOPIFY_APP_URL
-        value: https://shopify.opentrust.in
+        value: https://stores.opentrust.in
         scope: RUN_TIME
       - key: SCOPES
         value: read_orders,write_orders
@@ -66,7 +66,7 @@ databases:
     db_user: opentrust_shopify
 
 domains:
-  - domain: shopify.opentrust.in
+  - domain: stores.opentrust.in
     type: PRIMARY
     minimum_tls_version: "1.2"
 

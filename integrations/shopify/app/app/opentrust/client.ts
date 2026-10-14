@@ -1,5 +1,5 @@
-// A small OpenTrust API client for this app (the same calls as the `opentrust` npm package, which isn't published yet).
-// When the package is on npm, replace this file with `import { OpenTrust } from "opentrust"`.
+// A small OpenTrust API client for this app: the same calls as the `opentrust` npm package (now published). It stays a small
+// local copy so the app has no extra dependency; if the package's lookup fields change, change them here too.
 
 const DEFAULT_BASE_URL = "https://opentrust.in/api/v1";
 
@@ -7,12 +7,16 @@ export interface ReportSummary {
   reasonCode: string;
   reason?: string;
   notes?: string | null;
+  incidentAt?: string | null;
+  confirmedBy?: string | null;
   reportedAt?: string;
 }
 
 export interface LookupResult {
   reported: boolean;
   reportCount: number;
+  /** True when this merchant has shared the number itself (the counts only cover other merchants). */
+  ownReport?: boolean;
   reports: ReportSummary[];
   notice?: string;
   checksRemaining?: number;
@@ -93,10 +97,13 @@ export function createClient(
       return {
         reported: (b.report_count ?? 0) > 0,
         reportCount: b.report_count ?? 0,
+        ownReport: b.own_report === true,
         reports: (b.reports ?? []).map((r: any) => ({
           reasonCode: r.reason_code,
           reason: r.reason,
           notes: r.notes ?? null,
+          incidentAt: r.incident_at ?? null,
+          confirmedBy: r.confirmed_by ?? null,
           reportedAt: r.reported_at,
         })),
         notice: b.notice,

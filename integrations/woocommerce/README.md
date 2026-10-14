@@ -3,7 +3,7 @@
 A WordPress plugin that checks the billing phone number of new orders against OpenTrust in the background (so checkout is never slowed), adds a private order note when other merchants have noted experiences with the number, and can optionally put those orders on hold. It never cancels or blocks an order and fails open.
 
 - Works with the classic and block checkout, and High-Performance Order Storage.
-- Only cash-on-delivery orders by default, which saves checks.
+- Checks every order with a phone number by default; an option limits it to cash-on-delivery orders to save checks.
 - An "OpenTrust" box on every order screen: "Check now" and "Share an experience".
 - Settings: WooCommerce > OpenTrust.
 

@@ -17,6 +17,18 @@ if [ -f "$dump.sha256" ]; then
   [ "$expected" = "$actual" ] || { echo "checksum mismatch: the dump is damaged" >&2; exit 1; }
 fi
 
+# An encrypted dump (.enc) is decrypted to a private temporary file first, which is removed again on exit.
+src="$dump"
+if [[ "$dump" == *.enc ]]; then
+  KEYFILE="${BACKUP_ENCRYPTION_KEY_FILE:-$(envval BACKUP_ENCRYPTION_KEY_FILE)}"
+  [ -n "$KEYFILE" ] && [ -r "$KEYFILE" ] || { echo "this dump is encrypted: set BACKUP_ENCRYPTION_KEY_FILE to the key file it was made with" >&2; exit 1; }
+  plain="$(umask 077; mktemp)"
+  trap 'rm -f "$plain"' EXIT
+  openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -pass "file:$KEYFILE" -in "$dump" -out "$plain" \
+    || { echo "could not decrypt $dump: wrong key, or the file is damaged" >&2; exit 1; }
+  src="$plain"
+fi
+
 # The app's login must own what it uses, so pick the owner from which database the dump came from.
 case "$(basename "$dump")" in
   opentrust_shopify-*) owner=opentrust_shopify ;;
@@ -25,5 +37,5 @@ case "$(basename "$dump")" in
 esac
 dc exec -T db createdb -U postgres -O "$owner" "$target"
 dc exec -T db psql -U postgres -qc "REVOKE CONNECT ON DATABASE \"$target\" FROM PUBLIC; GRANT CONNECT ON DATABASE \"$target\" TO \"$owner\";"
-dc exec -T db pg_restore -U postgres --no-acl -d "$target" < "$dump"
+dc exec -T db pg_restore -U postgres --no-acl -d "$target" < "$src"
 log "restored $dump into database $target (owner: $owner)"

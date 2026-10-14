@@ -8,7 +8,7 @@ class Settings {
 	const OPTION = 'opentrust_wc_settings';
 
 	public static function defaults() {
-		return array( 'api_key' => '', 'only_cod' => 'yes', 'hold_on_report' => 'no' );
+		return array( 'api_key' => '', 'only_cod' => 'no', 'hold_on_report' => 'no' );
 	}
 
 	public static function get() {
@@ -19,6 +19,22 @@ class Settings {
 	public static function client( $timeout = 4 ) {
 		$base = apply_filters( 'opentrust_wc_base_url', Client::DEFAULT_BASE );
 		return new Client( self::get()['api_key'], $base, $timeout );
+	}
+
+	/** The reason list: the live one from the API (cached), else the one shipped with the plugin. */
+	public static function reason_entries() {
+		$cached = get_transient( 'opentrust_wc_reasons' );
+		if ( is_array( $cached ) ) {
+			return Reasons::entries( $cached );
+		}
+		try {
+			$live = self::client( 3 )->reason_codes();
+		} catch ( \Exception $e ) {
+			$live = array();
+		}
+		// A failure is remembered briefly, so a slow or unreachable API is not asked again on every page load.
+		set_transient( 'opentrust_wc_reasons', $live, $live ? 12 * HOUR_IN_SECONDS : 10 * MINUTE_IN_SECONDS );
+		return Reasons::entries( $live );
 	}
 
 	public static function hooks() {
@@ -73,7 +89,7 @@ class Settings {
 					</tr>
 					<tr>
 						<th scope="row">Which orders</th>
-						<td><label><input type="checkbox" name="<?php echo esc_attr( self::OPTION ); ?>[only_cod]" value="1" <?php checked( 'yes', $o['only_cod'] ); ?> /> Only cash-on-delivery orders <span class="description">(saves your checks, and COD is where most problems happen)</span></label></td>
+						<td><label><input type="checkbox" name="<?php echo esc_attr( self::OPTION ); ?>[only_cod]" value="1" <?php checked( 'yes', $o['only_cod'] ); ?> /> Only cash-on-delivery orders <span class="description">(off by default, so every order with a phone number is checked; turn on to save checks)</span></label></td>
 					</tr>
 					<tr>
 						<th scope="row">If reports are found</th>
@@ -102,7 +118,7 @@ class Settings {
 				$me     = self::client( 5 )->me();
 				$status = array( 'ok' => true, 'text' => sprintf( 'Connected as %s. %s checks left.', $me['merchant'], number_format_i18n( $me['checks_remaining'] ) ) );
 			} catch ( ApiException $e ) {
-				$status = array( 'ok' => false, 'text' => 'Could not connect: ' . $e->getMessage() );
+				$status = array( 'ok' => false, 'text' => 'Could not connect: ' . $e->text() );
 			}
 			set_transient( 'opentrust_wc_status', $status, 60 );
 		}

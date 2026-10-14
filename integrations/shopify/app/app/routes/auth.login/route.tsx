@@ -1,48 +1,22 @@
-import { useState } from "react";
-import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
-import { Form, useActionData, useLoaderData } from "react-router";
+import type { LoaderFunctionArgs } from "react-router";
 
 import { login } from "../../shopify.server";
-import { loginErrorMessage } from "./error.server";
 
+// Installation always starts from a Shopify-owned surface (the App Store or the merchant's admin), so this page never asks
+// for a shop domain. A request that arrives with a valid ?shop= is handed to Shopify's login, which redirects.
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const errors = loginErrorMessage(await login(request));
-
-  return { errors };
-};
-
-export const action = async ({ request }: ActionFunctionArgs) => {
-  const errors = loginErrorMessage(await login(request));
-
-  return {
-    errors,
-  };
+  if (new URL(request.url).searchParams.get("shop")) await login(request);
+  return null;
 };
 
 export default function Auth() {
-  const loaderData = useLoaderData<typeof loader>();
-  const actionData = useActionData<typeof action>();
-  const [shop, setShop] = useState("");
-  const { errors } = actionData || loaderData;
-
   return (
     <>
       <script src="https://cdn.shopify.com/shopifycloud/polaris.js" />
       <s-page>
-        <Form method="post">
-        <s-section heading="Log in">
-          <s-text-field
-            name="shop"
-            label="Shop domain"
-            details="example.myshopify.com"
-            value={shop}
-            onChange={(e) => setShop(e.currentTarget.value)}
-            autocomplete="on"
-            error={errors.shop}
-          ></s-text-field>
-          <s-button type="submit">Log in</s-button>
+        <s-section heading="Open OpenTrust from your Shopify admin">
+          <s-paragraph>Install the app from Shopify, then open it under Apps in your admin.</s-paragraph>
         </s-section>
-        </Form>
       </s-page>
     </>
   );

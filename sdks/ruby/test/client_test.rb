@@ -120,3 +120,70 @@ class ClientTest < Minitest::Test
     assert_raises(ArgumentError) { OpenTrust::Client.new(api_key: "") }
   end
 end
+
+# Hashing: the same test vectors the OpenTrust server is tested against.
+class PhoneHashTest < Minitest::Test
+  VECTORS = JSON.parse(File.read(File.expand_path("../../phone-hash-vectors.json", __dir__)))
+
+  def hashing_client(body = {}, &capture)
+    adapter = lambda do |verb, url, headers, req_body|
+      capture&.call(verb, url, JSON.parse(req_body.to_s.empty? ? "{}" : req_body))
+      [200, JSON.generate(body)]
+    end
+    OpenTrust::Client.new(api_key: "ot_live_test", adapter: adapter, hash_numbers: true)
+  end
+
+  def test_every_vector_normalises_and_hashes_the_same_way
+    VECTORS["valid"].each do |v|
+      assert_equal v["e164"], OpenTrust::Phone.normalize(v["input"]), "normalize #{v['input'].inspect}"
+      assert_equal v["sha256"], OpenTrust.hash_phone(v["input"]), "sha256 #{v['input'].inspect}"
+      assert_equal 13, OpenTrust::Phone.hashed_length(v["input"]), "length #{v['input'].inspect}"
+    end
+  end
+
+  def test_everything_else_is_refused_before_anything_is_sent
+    VECTORS["invalid"].each do |i|
+      assert_raises(OpenTrust::InvalidPhoneError, "accepted #{i.inspect}") { OpenTrust::Phone.normalize(i) }
+    end
+  end
+
+  def test_lookup_sends_only_the_hash
+    seen = nil
+    hashing_client("report_count" => 0, "reports" => [], "phone_sha256" => "x") { |_v, _u, b| seen = b }.lookup("98765 43210")
+    assert_equal({ "phone_sha256" => VECTORS["valid"][0]["sha256"], "phone_length" => 13 }, seen)
+  end
+
+  def test_lookup_many_sends_hashes_and_report_sends_hash_and_last_four
+    seen = nil
+    hashing_client("results" => []) { |_v, _u, b| seen = b }.lookup_many(["9876543210", "7012345678"])
+    assert_equal 2, seen["phone_sha256s"].size
+    assert_equal 13, seen["phone_length"]
+    refute seen.key?("phones")
+    hashing_client("id" => 1, "phone_last4" => "3210") { |_v, _u, b| seen = b }.report(phone: "9876543210", reason_code: "chargeback")
+    assert_equal({ "phone_sha256" => VECTORS["valid"][0]["sha256"], "phone_length" => 13, "phone_last4" => "3210", "reason_code" => "chargeback" }, seen)
+    assert_nil seen["phone"]
+  end
+
+  def test_withdraw_sends_the_hash_and_the_plain_client_still_sends_the_number
+    seen = nil
+    hashing_client("phone_last4" => "3210", "status" => "withdrawn") { |_v, _u, b| seen = b }.withdraw_report("9876543210")
+    assert_equal({ "phone_sha256" => VECTORS["valid"][0]["sha256"], "phone_length" => 13 }, seen)
+    plain = OpenTrust::Client.new(api_key: "k", adapter: ->(_v, _u, _h, b) { seen = JSON.parse(b); [200, "{}"] })
+    plain.lookup("98765 43210")
+    assert_equal({ "phone" => "98765 43210" }, seen)
+  end
+
+  def test_a_bad_number_never_reaches_the_network
+    sent = false
+    assert_raises(OpenTrust::InvalidPhoneError) { hashing_client { sent = true }.lookup("12345") }
+    refute sent
+  end
+
+  def test_verify_hashing_asks_the_server_to_compare
+    seen = nil
+    result = hashing_client("match" => true) { |_v, u, b| seen = [u, b] }.verify_hashing("9876543210")
+    assert_equal "https://opentrust.in/api/v1/phone_hash/check", seen[0]
+    assert_equal VECTORS["valid"][0]["sha256"], seen[1]["phone_sha256"]
+    assert result["match"]
+  end
+end

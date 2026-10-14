@@ -86,7 +86,7 @@ export default function Settings() {
           </s-link>
           <s-checkbox
             label="Only check cash-on-delivery orders"
-            details="Saves your checks. COD is where most problems happen. Turn this off to check every order with a phone number."
+            details="Each check uses one of your OpenTrust checks. By default every order with a phone number is checked. Turn this on to check only cash-on-delivery orders and save checks."
             checked={onlyCod}
             onChange={(e) => setOnlyCod(e.currentTarget.checked)}
           />

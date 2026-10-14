@@ -5,6 +5,8 @@ export interface OpenTrustOptions {
   /** Default 5000 */
   timeoutMs?: number;
   fetch?: typeof fetch;
+  /** Send the SHA-256 of each number instead of the number. Limits what is sent; does not make a number anonymous. Default false */
+  hashNumbers?: boolean;
 }
 
 export interface Report {
@@ -22,7 +24,10 @@ export interface Report {
 
 /** Reports are unverified observations from individual merchants, not a finding about anyone. */
 export interface Lookup {
-  phoneLast4: string;
+  /** Empty when the number was sent as a hash: we never saw it */
+  phoneLast4: string | null;
+  /** Set when the number was sent as a hash */
+  phoneSha256: string | null;
   reported: boolean;
   /** Reports from OTHER merchants only */
   reportCount: number;
@@ -55,9 +60,21 @@ export class OpenTrust {
   /** Rejects with NotFoundError if you have no active report for that number */
   withdrawReport(phone: string): Promise<{ phoneLast4: string; status: "withdrawn" }>;
   reasonCodes(): Promise<ReasonCode[]>;
+  /** Development aid: asks OpenTrust whether it computes the same SHA-256 as this library. Sends the number: use a test number. */
+  verifyHashing(testPhone: string): Promise<{ phone: string; phone_sha256: string; match: boolean }>;
   me(): Promise<{ merchant: string; checksRemaining: number; reportsSubmitted: number }>;
 }
 export default OpenTrust;
+
+/** "+91" followed by the ten digits. Throws InvalidPhoneError for anything that is not an Indian mobile number. */
+export function normalizePhone(raw: string): string;
+/** The 64 lowercase hex characters OpenTrust expects as phone_sha256 */
+export function hashPhone(raw: string): string;
+/** The length of the text that is hashed (13), sent as phone_length */
+export function hashedLength(raw: string): number;
+/** The last four digits */
+export function last4(raw: string): string;
+export class InvalidPhoneError extends TypeError {}
 
 export class OpenTrustError extends Error { status?: number; code?: string }
 export class ConnectionError extends OpenTrustError {}

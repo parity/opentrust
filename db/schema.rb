@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_10_12_051732) do
+ActiveRecord::Schema[7.1].define(version: 2026_10_14_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -61,7 +61,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_12_051732) do
   create_table "fraud_reports", force: :cascade do |t|
     t.bigint "merchant_id", null: false
     t.string "phone_hash", null: false
-    t.text "phone_ciphertext", null: false
+    t.text "phone_ciphertext"
     t.string "phone_last4", null: false
     t.string "reason_code", null: false
     t.string "notes", limit: 500

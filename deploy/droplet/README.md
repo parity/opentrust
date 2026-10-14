@@ -56,12 +56,34 @@ unset ADMIN_PASSWORD
 
 Put a Cloudflare Access policy (or similar) in front of `/admin*`.
 
+### Rolling back a release that changed the database
+
+`./deploy.sh <git-sha>` puts the old code back, **not** the old database. Most releases only add columns, which old code ignores, so that is fine. A release that rewrites existing data needs its migration reverted first, **while the new version is still running** (the old image does not contain the migration):
+
+```bash
+. ./lib.sh
+dc exec -T web ./bin/rails db:rollback STEP=1     # revert the last migration
+./deploy.sh <git-sha>                              # then deploy the old code
+```
+
+Take a backup (`./backup.sh`) before any deploy that includes a data migration. Releases like that say so in their commit message. For example, the release that introduced hashed phone numbers (migration `20261014120000`) re-keys every report: without reverting it, old code finds no reports and every lookup says "not reported". The revert works as long as every report still has its stored number; a report filed as a hash alone has none, and then the revert refuses to run.
+
 ## Backups
 
 ```bash
 ./backup.sh                                    # pg_dump of each database, checked with pg_restore --list, checksummed, rotated
 crontab cron.example                           # every 6 hours, plus the nightly retention purge
 ```
+
+**Dumps are encrypted** (AES-256) with a key file, and `backup.sh` refuses to run without one (or an explicit `BACKUP_ALLOW_UNENCRYPTED=yes`). Create the key once, and keep a copy in a password manager, because without it the backups cannot be restored:
+
+```bash
+openssl rand -base64 48 | sudo tee /etc/opentrust/backup.key > /dev/null
+sudo chown root:"$USER" /etc/opentrust/backup.key && sudo chmod 640 /etc/opentrust/backup.key
+# then set BACKUP_ENCRYPTION_KEY_FILE=/etc/opentrust/backup.key in the settings file
+```
+
+Encrypted dumps end in `.dump.enc`; `restore.sh` decrypts them with the same key and reads them like any other dump. Store the key somewhere other than where the dumps are uploaded.
 
 Set `BACKUP_UPLOAD_CMD` in the settings file to a script that copies each dump **off the server**; a backup that lives only on the
 machine it protects is not a backup. Cloud "droplet backups" usually don't include attached volumes, so the dumps are what
@@ -85,6 +107,16 @@ dc exec -T db psql -U postgres -qAtc "select pg_terminate_backend(pid) from pg_s
 dc exec -T db psql -U postgres -qc "ALTER DATABASE opentrust RENAME TO opentrust_old; ALTER DATABASE opentrust_restored RENAME TO opentrust;"
 dc start web
 ```
+
+## Alerts
+
+Optional, and off until you set them in the settings file (see `.env.example`):
+
+- `SLACK_WEBHOOK_URL`: a Slack incoming webhook. A failed deploy (build or health check, with the rollback), a failed backup (dump, encryption, or the off-server copy) and a failed nightly purge each post one message. A successful deploy posts a short note. A successful backup says nothing. The website uses the same webhook to tell you when a merchant has verified their email and is waiting for approval, with a button that opens the admin queue (approving still happens in the admin, behind the login).
+- `HEALTHCHECK_URL`: a dead-man's-switch URL such as healthchecks.io. `backup.sh` pings it when it starts and when it finishes, so you are also told when a backup did **not run at all** (a stopped cron job, a dead server), which a script cannot report about itself.
+- `ALERT_LABEL`: names the server in messages (`opentrust-prod`, `opentrust-staging`).
+
+Neither can ever make a deploy or a backup fail or hang. Also set up an uptime check on `/up` and the host's CPU, memory and disk alerts with your provider.
 
 ## A second environment (staging)
 
@@ -111,7 +143,7 @@ Keep the operating system updated and watch CPU, memory and disk. Containers res
 |---|---|
 | `docker-compose.yml` | Postgres, web, optional Shopify app, and the tunnel or Caddy. Each service gets only the variables it needs. |
 | `deploy.sh` | Fetch, build (images tagged by commit), start, health-check, automatic rollback |
-| `backup.sh`, `restore.sh`, `cron.example` | Dumps, restores into a new database, schedule |
+| `backup.sh`, `restore.sh`, `purge.sh`, `cron.example` | Dumps, restores into a new database, the nightly retention purge, and their schedule |
 | `lib.sh` | Shared helpers (`dc` is `docker compose` with this deployment's settings) |
 | `initdb/` | Creates one database and one login per app, the first time Postgres starts |
 | `Caddyfile` | Only for `ENTRY=caddy` |

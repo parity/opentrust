@@ -1,7 +1,5 @@
 import type { LoaderFunctionArgs } from "react-router";
-import { redirect, Form, useLoaderData } from "react-router";
-
-import { login } from "../../shopify.server";
+import { redirect } from "react-router";
 
 import styles from "./styles.module.css";
 
@@ -12,12 +10,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     throw redirect(`/app?${url.searchParams.toString()}`);
   }
 
-  return { showForm: Boolean(login) };
+  return null;
 };
 
 export default function App() {
-  const { showForm } = useLoaderData<typeof loader>();
-
   return (
     <div className={styles.index}>
       <div className={styles.content}>
@@ -25,18 +21,7 @@ export default function App() {
         <p className={styles.text}>
           Check new orders against experiences shared by other Indian merchants. Free.
         </p>
-        {showForm && (
-          <Form className={styles.form} method="post" action="/auth/login">
-            <label className={styles.label}>
-              <span>Shop domain</span>
-              <input className={styles.input} type="text" name="shop" />
-              <span>e.g: my-shop-domain.myshopify.com</span>
-            </label>
-            <button className={styles.button} type="submit">
-              Log in
-            </button>
-          </Form>
-        )}
+        <p className={styles.text}>Install OpenTrust from your Shopify admin, then open it under Apps.</p>
         <ul className={styles.list}>
           <li><strong>Checks new orders</strong>. When a new order comes in, its phone number is checked with OpenTrust in the background.</li>
           <li><strong>Flags, never blocks</strong>. If other merchants have noted experiences with the number, the order is tagged and annotated for your review. Nothing is cancelled or held.</li>

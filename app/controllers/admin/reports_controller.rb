@@ -1,6 +1,10 @@
 module Admin
   class ReportsController < BaseController
-    def index = (@reports = FraudReport.includes(:merchant).order(id: :desc).limit(200))
+    # This page shows decrypted numbers, so every visit is recorded in the audit log.
+    def index
+      @reports = FraudReport.includes(:merchant).order(id: :desc).limit(200)
+      AuditLog.record(current_admin, "reports.view", nil, { shown: @reports.size })
+    end
 
     def remove
       report = FraudReport.find(params[:id])

@@ -9,6 +9,7 @@ class EmailVerificationsController < ApplicationController
     when :ok
       session.delete(:dev_otp)
       MerchantMailer.received(current_merchant).deliver_later
+      MerchantReviewAlertJob.perform_later(current_merchant.id) # tells the admins in Slack, if a webhook is set
       redirect_to portal_root_path, notice: "Email verified. An admin will review your account shortly."
     when :wrong
       fail_with "That code isn't right. Check the email and try again."

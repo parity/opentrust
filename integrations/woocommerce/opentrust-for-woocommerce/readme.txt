@@ -1,8 +1,8 @@
 === OpenTrust for WooCommerce ===
-Contributors: opentrust
-Tags: woocommerce, cod, fraud, orders, india
+Contributors: paritycube
+Tags: woocommerce, fraud, orders, phone, india
 Requires at least: 6.0
-Tested up to: 6.6
+Tested up to: 7.1
 Requires PHP: 7.4
 Stable tag: 0.1.0
 License: GPLv2 or later
@@ -12,13 +12,13 @@ Check new orders' phone numbers against experiences shared by other Indian merch
 
 == Description ==
 
-OpenTrust is a free, community-run notebook where Indian merchants note down mobile numbers that caused them trouble (refused COD orders, callers posing as a bank to get an OTP, and the like), and check new customers before they ship.
+OpenTrust is a free, community-run notebook where Indian merchants note down mobile numbers that caused them trouble (chargebacks and disputed payments, fake orders, callers posing as a bank to get an OTP, refused COD orders, and the like), and check new customers before they fulfil an order.
 
 This plugin checks the billing phone number of new orders in the background, so checkout is never slowed, and adds a private note to the order if other merchants have noted experiences with that number. You can optionally put such orders on hold so you have a moment to review them.
 
 * Checks run in the background after the order is placed. If OpenTrust is unreachable, the order carries on as normal.
 * Works with the classic and block checkout, and High-Performance Order Storage.
-* Only cash-on-delivery orders by default, which saves your checks.
+* Checks every order with a phone number by default. An option limits it to cash-on-delivery orders to save checks.
 * "Check now" and "Share an experience" on every order screen.
 * Orders are never cancelled or blocked. Reports are unverified observations from individual merchants, not a finding about anyone, so you decide.
 
@@ -30,6 +30,8 @@ This plugin sends data to the OpenTrust API at https://opentrust.in to do its jo
 
 * **What is sent:** the billing phone number of an order that is checked, together with your API key. When you use "Share an experience", the phone number, the reason you choose and your note are sent too. Nothing else about the customer or the order is sent.
 * **When:** after an order is placed (if it qualifies under your settings), and when you press "Check now" or "Share".
+* **Reason list:** the plugin also asks OpenTrust for the current list of reasons you can choose from, so new reasons appear without an update. No order or customer data is sent with that request, and the list is cached for 12 hours.
+* **Optional on "Share":** the date it happened and who (a bank, a payment gateway or law enforcement) confirmed it, if you choose to add them.
 * **Service provider:** OpenTrust. [Terms](https://opentrust.in/terms) and [Privacy Policy](https://opentrust.in/privacy).
 
 Please mention this in your own store's privacy policy.
@@ -38,7 +40,7 @@ Please mention this in your own store's privacy policy.
 
 1. Install and activate the plugin.
 2. Go to WooCommerce > OpenTrust and paste your API key from the [OpenTrust dashboard](https://opentrust.in/portal/api_keys).
-3. Choose whether to check only COD orders and whether to put reported orders on hold.
+3. Optionally limit checks to COD orders, and choose whether to put reported orders on hold.
 
 == Frequently Asked Questions ==
 

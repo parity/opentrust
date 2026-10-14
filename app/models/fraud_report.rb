@@ -13,7 +13,9 @@ class FraudReport < ApplicationRecord
 
   scope :active, -> { where(status: "active") }
 
-  validates :phone_hash, :phone_ciphertext, :phone_last4, presence: true
+  # phone_ciphertext is empty when the merchant sent only the SHA-256 of the number; we then know the last four digits only because they told us.
+  validates :phone_hash, :phone_last4, presence: true
+  validates :phone_last4, format: { with: /\A\d{4}\z/, message: "must be four digits" }, allow_blank: true
   validates :reason_code, inclusion: { in: REASON_CODES }
   validates :status, inclusion: { in: STATUSES }
   validates :notes, length: { maximum: 500 }

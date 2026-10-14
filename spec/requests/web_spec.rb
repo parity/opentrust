@@ -29,7 +29,7 @@ RSpec.describe "Web flow", type: :request do
     expect(merchant.phone).to eq("+919876543210")
     expect(merchant.terms_accepted_at).to be_present
     expect(merchant.terms_version).to eq(OpenTrust::LEGAL_VERSION)
-    admin = AdminUser.create!(email: "a@opentrust.test", password: "adminpass")
+    admin = AdminUser.create!(email: "a@opentrust.test", password: "adminpassword12")
     MerchantApproval.approve!(merchant, admin)
     expect(merchant.reload.checks_remaining).to eq(OpenTrust::FREE_CHECKS)
 
@@ -42,13 +42,28 @@ RSpec.describe "Web flow", type: :request do
   end
 
   it "admin can remove a report" do
-    admin = AdminUser.create!(email: "a@opentrust.test", password: "adminpass")
+    admin = AdminUser.create!(email: "a@opentrust.test", password: "adminpassword12")
     m = create(:merchant, checks_remaining: 0)
     report = ReportService.call(m, phone: "9876543210", reason_code: "chargeback")
-    post "/admin/login", params: { email: admin.email, password: "adminpass" }
+    post "/admin/login", params: { email: admin.email, password: "adminpassword12" }
     post "/admin/reports/#{report.id}/remove"
     expect(report.reload.status).to eq("removed")
     expect(FraudReport.active.where(id: report.id)).to be_empty
+  end
+
+  it "records every admin view of the reports page, which shows decrypted numbers" do
+    admin = AdminUser.create!(email: "a@opentrust.test", password: "adminpassword12")
+    ReportService.call(create(:merchant, checks_remaining: 0), phone: "9876543210", reason_code: "chargeback")
+    post "/admin/login", params: { email: admin.email, password: "adminpassword12" }
+    expect { get "/admin/reports" }.to change { AuditLog.where(action: "reports.view").count }.by(1)
+    expect(AuditLog.where(action: "reports.view").last).to have_attributes(admin_user_id: admin.id, details: { "shown" => 1 })
+  end
+
+  it "requires at least 12 characters for an admin password" do
+    expect(AdminUser.new(email: "short@opentrust.test", password: "elevenchars")).not_to be_valid
+    expect(AdminUser.new(email: "ok@opentrust.test", password: "twelve-chars")).to be_valid
+    admin = AdminUser.create!(email: "old@opentrust.test", password: "a-long-enough-one")
+    expect(AdminUser.find(admin.id).update(email: "new@opentrust.test")).to be(true) # not changing the password
   end
 
   it "non-admins cannot reach admin" do
@@ -87,7 +102,7 @@ RSpec.describe "Email verification", type: :request do
     user = register!("r@acme.test")
     post "/verify-email/resend"
     expect(flash[:alert]).to include("wait")
-    admin = AdminUser.create!(email: "a@opentrust.test", password: "adminpass")
+    admin = AdminUser.create!(email: "a@opentrust.test", password: "adminpassword12")
     expect { MerchantApproval.approve!(user.merchant, admin) }.to raise_error(/not verified/)
   end
 end

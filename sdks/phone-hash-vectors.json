@@ -1,0 +1,59 @@
+{
+  "format": "Normalise to +91 followed by the ten digits of an Indian mobile number (first digit 6-9), then SHA-256 of that ASCII string, as 64 lowercase hex characters.",
+  "valid": [
+    {
+      "input": "9876543210",
+      "e164": "+919876543210",
+      "sha256": "f3a47ce5ce3d4ca8ad15225a245b2759022f79489f5c62719b8c9490f7aab90e"
+    },
+    {
+      "input": "98765 43210",
+      "e164": "+919876543210",
+      "sha256": "f3a47ce5ce3d4ca8ad15225a245b2759022f79489f5c62719b8c9490f7aab90e"
+    },
+    {
+      "input": "+91 98765 43210",
+      "e164": "+919876543210",
+      "sha256": "f3a47ce5ce3d4ca8ad15225a245b2759022f79489f5c62719b8c9490f7aab90e"
+    },
+    {
+      "input": "+919876543210",
+      "e164": "+919876543210",
+      "sha256": "f3a47ce5ce3d4ca8ad15225a245b2759022f79489f5c62719b8c9490f7aab90e"
+    },
+    {
+      "input": "919876543210",
+      "e164": "+919876543210",
+      "sha256": "f3a47ce5ce3d4ca8ad15225a245b2759022f79489f5c62719b8c9490f7aab90e"
+    },
+    {
+      "input": "09876543210",
+      "e164": "+919876543210",
+      "sha256": "f3a47ce5ce3d4ca8ad15225a245b2759022f79489f5c62719b8c9490f7aab90e"
+    },
+    {
+      "input": "(+91) 98765-43210",
+      "e164": "+919876543210",
+      "sha256": "f3a47ce5ce3d4ca8ad15225a245b2759022f79489f5c62719b8c9490f7aab90e"
+    },
+    {
+      "input": "6000000001",
+      "e164": "+916000000001",
+      "sha256": "ffdbe12d10dca9a543d5c7495d0a2b1ab8c083099f2570b5f29e5c2c7fc0b6fc"
+    },
+    {
+      "input": "7012345678",
+      "e164": "+917012345678",
+      "sha256": "0656115ca5c9cc3196cba3531d1033a23ff09690d70e0df13c737946a5e304b7"
+    }
+  ],
+  "invalid": [
+    "",
+    "12345",
+    "5876543210",
+    "98765432",
+    "98765432101",
+    "+1 415 555 0100",
+    "abcdefghij"
+  ]
+}

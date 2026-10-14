@@ -9,7 +9,8 @@ module OpenTrust
   # not a finding about anyone. Use them as one input among others.
   #
   # `reports` and `report_count` only hold OTHER merchants' reports. `own_report` says whether you have shared this number yourself.
-  Lookup = Struct.new(:phone_last4, :report_count, :reports, :own_report, :notice, :checks_remaining, keyword_init: true) do
+  # `phone_sha256` is set when the number was sent as a hash (then `phone_last4` is empty: we never saw the number).
+  Lookup = Struct.new(:phone_last4, :phone_sha256, :report_count, :reports, :own_report, :notice, :checks_remaining, keyword_init: true) do
     def reported?
       report_count.to_i.positive?
     end
@@ -42,24 +43,29 @@ module OpenTrust
   class Client
     DEFAULT_BASE_URL = "https://opentrust.in/api/v1".freeze
 
+    # hash_numbers: send the SHA-256 of each number (see OpenTrust::Phone) instead of the number, so OpenTrust never receives it.
+    # A hash can in principle be reversed by brute force, so this limits what is sent; it does not make a number anonymous.
     # adapter: optional callable (method, url, headers, body) -> [status, body_string], mainly for tests.
-    def initialize(api_key: ENV["OPENTRUST_API_KEY"], base_url: ENV.fetch("OPENTRUST_BASE_URL", DEFAULT_BASE_URL), timeout: 5, adapter: nil)
+    def initialize(api_key: ENV["OPENTRUST_API_KEY"], base_url: ENV.fetch("OPENTRUST_BASE_URL", DEFAULT_BASE_URL), timeout: 5, adapter: nil, hash_numbers: false)
       raise ArgumentError, "api_key is required (or set OPENTRUST_API_KEY)" if api_key.to_s.empty?
 
       @api_key = api_key
       @base_url = base_url.chomp("/")
       @timeout = timeout
       @adapter = adapter
+      @hash_numbers = hash_numbers
     end
 
     # Check one number. Uses one check from your allowance.
     def lookup(phone)
-      lookup_from(request(:post, "/lookups", phone: phone))
+      lookup_from(request(:post, "/lookups", number_fields(phone)))
     end
 
     # Check up to 100 numbers. All or nothing: if you don't have enough checks, none are used.
     def lookup_many(phones)
-      body = request(:post, "/lookups/batch", phones: Array(phones))
+      list = Array(phones)
+      payload = @hash_numbers ? { phone_sha256s: list.map { |p| Phone.sha256(p) }, phone_length: Phone::HASHED_LENGTH } : { phones: list }
+      body = request(:post, "/lookups/batch", payload)
       body.fetch("results").map { |r| lookup_from(r.merge("notice" => body["notice"], "checks_remaining" => body["checks_remaining"])) }
     end
 
@@ -88,7 +94,7 @@ module OpenTrust
 
     # Withdraw your own report for a number. Raises NotFoundError if you have no active report for it.
     def withdraw_report(phone)
-      body = request(:delete, "/reports", phone: phone)
+      body = request(:delete, "/reports", number_fields(phone))
       Withdrawal.new(phone_last4: body["phone_last4"], status: body["status"])
     end
 
@@ -102,16 +108,31 @@ module OpenTrust
       request(:get, "/me")
     end
 
+    # A development aid: asks OpenTrust whether it computes the same SHA-256 as this library for a number. Use a test number, not a
+    # customer's: it sends the number. Returns a Hash with "match" (true or false). It costs no checks.
+    def verify_hashing(test_phone)
+      request(:post, "/phone_hash/check", phone: test_phone, phone_sha256: Phone.sha256(test_phone))
+    end
+
     private
 
     def report_payload(phone:, reason_code:, notes: nil, incident_at: nil, confirmed_by: nil, evidence_ref: nil)
       incident_at = incident_at.iso8601 if incident_at.respond_to?(:iso8601)
-      { phone: phone, reason_code: reason_code, notes: notes, incident_at: incident_at, confirmed_by: confirmed_by, evidence_ref: evidence_ref }.compact
+      number_fields(phone, with_last4: true).merge(reason_code: reason_code, notes: notes, incident_at: incident_at, confirmed_by: confirmed_by, evidence_ref: evidence_ref).compact
+    end
+
+    # The number, or (with hash_numbers) its SHA-256 and, for a report, its last four digits.
+    def number_fields(phone, with_last4: false)
+      return { phone: phone } unless @hash_numbers
+
+      fields = { phone_sha256: Phone.sha256(phone), phone_length: Phone.hashed_length(phone) }
+      fields[:phone_last4] = Phone.last4(phone) if with_last4
+      fields
     end
 
     def lookup_from(h)
       Lookup.new(
-        phone_last4: h["phone_last4"], report_count: h["report_count"], own_report: h["own_report"], notice: h["notice"], checks_remaining: h["checks_remaining"],
+        phone_last4: h["phone_last4"], phone_sha256: h["phone_sha256"], report_count: h["report_count"], own_report: h["own_report"], notice: h["notice"], checks_remaining: h["checks_remaining"],
         reports: Array(h["reports"]).map do |r|
           Report.new(reason_code: r["reason_code"], reason: r["reason"], notes: r["notes"], incident_at: r["incident_at"], confirmed_by: r["confirmed_by"], reported_at: r["reported_at"], reporter_verified: r["reporter_verified"])
         end

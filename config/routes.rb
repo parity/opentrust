@@ -6,6 +6,7 @@ Rails.application.routes.draw do
       post "reports", to: "reports#create"
       post "reports/batch", to: "reports#batch"
       delete "reports", to: "reports#destroy"
+      post "phone_hash/check", to: "phone_hash#check"
       get "reason_codes", to: "reason_codes#index"
       get "me", to: "me#show"
     end

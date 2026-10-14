@@ -53,15 +53,22 @@ class OrderBox {
 		echo '<details style="margin-top:12px"><summary>Share an experience with this number</summary><div style="margin-top:8px">';
 		echo '<input type="hidden" form="' . esc_attr( $share_form ) . '" name="order_id" value="' . esc_attr( $id ) . '" />';
 		echo '<input type="hidden" form="' . esc_attr( $share_form ) . '" name="_wpnonce" value="' . esc_attr( wp_create_nonce( 'opentrust_wc_report_' . $id ) ) . '" />';
+		$entries = Settings::reason_entries();
 		echo '<p><select form="' . esc_attr( $share_form ) . '" name="reason_code" style="width:100%">';
-		foreach ( Reasons::groups() as $group => $codes ) {
+		foreach ( Reasons::groups( $entries ) as $group => $codes ) {
 			echo '<optgroup label="' . esc_attr( $group ) . '">';
 			foreach ( $codes as $code => $label ) {
 				echo '<option value="' . esc_attr( $code ) . '">' . esc_html( $label ) . '</option>';
 			}
 			echo '</optgroup>';
 		}
-		echo '</select></p>';
+		echo '</select><br /><small><a href="https://opentrust.in/docs#reasons" target="_blank" rel="noopener noreferrer">When to use each reason</a>. Share the number of the person who did it, never of a possible victim.</small></p>';
+		echo '<p><label>When did it happen? (optional)<br /><input type="date" form="' . esc_attr( $share_form ) . '" name="incident_at" max="' . esc_attr( gmdate( 'Y-m-d' ) ) . '" style="width:100%" /></label></p>';
+		echo '<p><label>Confirmed by (optional)<br /><select form="' . esc_attr( $share_form ) . '" name="confirmed_by" style="width:100%">';
+		foreach ( self::confirmed_by_options() as $value => $label ) {
+			echo '<option value="' . esc_attr( $value ) . '">' . esc_html( $label ) . '</option>';
+		}
+		echo '</select></label><br /><small>Only if they told you so. Other merchants see it as the reporter\'s claim; OpenTrust does not verify it.</small></p>';
 		echo '<p><textarea form="' . esc_attr( $share_form ) . '" name="notes" maxlength="500" rows="3" style="width:100%" placeholder="Facts only, e.g. Refused 3 COD orders in March. No names, links or phone numbers."></textarea></p>';
 		echo '<p><label><input type="checkbox" form="' . esc_attr( $share_form ) . '" name="first_hand" value="1" required /> This is based on my own store\'s direct experience and is accurate to the best of my knowledge.</label></p>';
 		echo '<p><button type="submit" form="' . esc_attr( $share_form ) . '" class="button">Share</button></p>';
@@ -85,22 +92,32 @@ class OrderBox {
 	}
 
 	public static function handle_report() {
-		$order = self::authorise( 'opentrust_wc_report_' );
+		$order = self::authorise( 'opentrust_wc_report_' ); // Verifies the nonce and the capability before anything is read.
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- the nonce was verified in self::authorise() above.
 		if ( empty( $_POST['first_hand'] ) ) {
 			self::back( $order, 'Please confirm the report is based on your own experience.', true );
 		}
 		$reason = isset( $_POST['reason_code'] ) ? sanitize_key( wp_unslash( $_POST['reason_code'] ) ) : '';
 		$notes  = isset( $_POST['notes'] ) ? sanitize_textarea_field( wp_unslash( $_POST['notes'] ) ) : '';
-		if ( ! isset( Reasons::all()[ $reason ] ) ) {
+		$all    = Reasons::all( Settings::reason_entries() );
+		if ( ! isset( $all[ $reason ] ) ) {
 			self::back( $order, 'Please choose what happened.', true );
 		}
+		if ( 'other' === $reason && strlen( trim( $notes ) ) < 10 ) {
+			self::back( $order, 'Please add a short note (at least 10 characters) when the reason is Other.', true );
+		}
+		$incident     = isset( $_POST['incident_at'] ) ? sanitize_text_field( wp_unslash( $_POST['incident_at'] ) ) : '';
+		$incident     = preg_match( '/^\d{4}-\d{2}-\d{2}$/', $incident ) ? $incident : '';
+		$confirmed_by = isset( $_POST['confirmed_by'] ) ? sanitize_key( wp_unslash( $_POST['confirmed_by'] ) ) : '';
+		$confirmed_by = isset( self::confirmed_by_options()[ $confirmed_by ] ) ? $confirmed_by : '';
 		try {
-			Settings::client( 8 )->report( $order->get_billing_phone(), $reason, $notes );
-			$order->add_order_note( 'OpenTrust: you shared an experience with this number (' . Reasons::all()[ $reason ] . ').' );
+			Settings::client( 8 )->report( $order->get_billing_phone(), $reason, $notes, $incident, $confirmed_by );
+			$order->add_order_note( 'OpenTrust: you shared an experience with this number (' . $all[ $reason ] . ').' );
 			self::back( $order, 'Thanks. Your report has been recorded.' );
 		} catch ( ApiException $e ) {
-			self::back( $order, 409 === $e->status ? 'You have already shared this number.' : $e->getMessage(), true );
+			self::back( $order, 409 === $e->status ? 'You have already shared this number.' : $e->text(), true );
 		}
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
 	}
 
 	public static function notices() {
@@ -129,6 +146,16 @@ class OrderBox {
 		set_transient( 'opentrust_wc_notice_' . get_current_user_id(), array( 'text' => $text, 'error' => $error ), 60 );
 		wp_safe_redirect( $order->get_edit_order_url() );
 		exit;
+	}
+
+	/** value => label. The empty value means nobody else confirmed it. */
+	public static function confirmed_by_options() {
+		return array(
+			''                => 'Not confirmed by anyone else',
+			'bank'            => 'A bank',
+			'payment_gateway' => 'A payment gateway',
+			'law_enforcement' => 'Law enforcement or a cyber cell',
+		);
 	}
 
 	public static function options() {

@@ -135,3 +135,7 @@ body:has(.desk[data-state="max"]) .scene { display: none; } /* fully covered: do
 .vwin[open] { animation: vwin-in .18s ease-out; }
 @keyframes vwin-in { from { opacity: 0; transform: scale(.97) translateY(6px); } }
 @media (prefers-reduced-motion: reduce) { .vwin[open] { animation: none; } .vthumb img, .vthumb-play { transition: none; } }
+
+/* A link from the Slack alert lands on one merchant's card: make it easy to find. */
+.merchant-card { scroll-margin-top: 1.5rem; }
+.merchant-card:target { outline: 3px solid var(--color-sun); outline-offset: 3px; }
